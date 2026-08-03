@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/Header'
 import { MetricCards } from '@/components/dashboard/MetricCards'
 import { OverviewChart } from '@/components/dashboard/OverviewChart'
 import { TransactionsTable } from '@/components/dashboard/TransactionsTable'
+import { TreasuryView } from '@/components/dashboard/TreasuryView'
 import type { Stats } from '@/types'
 import {
   BarChart2, Users, Settings, Database, FileText, Sparkles,
@@ -13,6 +14,7 @@ import {
 
 const SECTION_TITLES: Record<string, string> = {
   dashboard:    'Documents',
+  treasury:     'Treasury / الخزينة',
   transactions: 'Transactions',
   analytics:    'Analytics',
   projects:     'Projects',
@@ -70,7 +72,7 @@ export default function App() {
       case 'transactions':
       case 'lifecycle':
         return (
-          <div className="flex flex-col gap-5 p-6 bg-white min-h-full">
+          <div className="flex flex-col gap-5 p-6 bg-white dark:bg-zinc-950 min-h-full transition-colors duration-300">
             {/* Top Metric Cards (Row 1) */}
             <MetricCards stats={stats} loading={statsLoading} />
 
@@ -84,6 +86,9 @@ export default function App() {
             />
           </div>
         )
+
+      case 'treasury':
+        return <TreasuryView />
 
       case 'analytics':
         return <PlaceholderSection icon={BarChart2} title="Analytics" />
@@ -107,8 +112,8 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-screen w-full bg-white select-none">
-      {/* White Sidebar */}
+    <div className="flex min-h-screen w-full bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 select-none transition-colors duration-300">
+      {/* Sidebar */}
       <Sidebar
         activeSection={activeSection}
         onNavigate={setActiveSection}
@@ -116,8 +121,8 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <div className="flex flex-col flex-1 min-w-0 bg-white">
-        {/* White Top Header */}
+      <div className="flex flex-col flex-1 min-w-0 bg-white dark:bg-zinc-950">
+        {/* Top Header */}
         <Header
           searchValue={search}
           onSearchChange={setSearch}
@@ -125,7 +130,7 @@ export default function App() {
         />
 
         {/* Scrollable Page Content */}
-        <main className="flex-1 overflow-y-auto bg-white">
+        <main className="flex-1 overflow-y-auto bg-white dark:bg-zinc-950">
           {renderContent()}
         </main>
       </div>

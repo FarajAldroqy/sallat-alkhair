@@ -239,8 +239,8 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
               onClick={() => { setActiveTab('all'); setTypeFilter('ALL') }}
               className={`px-3 py-1.5 rounded-lg text-xs font-arabic transition-all whitespace-nowrap ${
                 activeTab === 'all'
-                  ? 'bg-zinc-200/80 text-zinc-900 font-bold'
-                  : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 font-medium'
+                  ? 'bg-zinc-200/80 dark:bg-zinc-800 text-zinc-900 dark:text-white font-bold'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/80 font-medium'
               }`}
             >
               جميع العمليات
@@ -250,8 +250,8 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
               onClick={() => { setActiveTab('deposits'); setTypeFilter('DEPOSIT') }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-arabic transition-all whitespace-nowrap ${
                 activeTab === 'deposits'
-                  ? 'bg-emerald-100 text-emerald-900 font-bold'
-                  : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 font-medium'
+                  ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-300 font-bold'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/80 font-medium'
               }`}
             >
               <span>الإيداعات النقدية</span>
@@ -261,8 +261,8 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
               onClick={() => { setActiveTab('withdrawals'); setTypeFilter('WITHDRAWAL') }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-arabic transition-all whitespace-nowrap ${
                 activeTab === 'withdrawals'
-                  ? 'bg-rose-100 text-rose-900 font-bold'
-                  : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 font-medium'
+                  ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-900 dark:text-rose-300 font-bold'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/80 font-medium'
               }`}
             >
               <span>السحوبات النقدية</span>
@@ -275,9 +275,9 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
               id="customize-columns-btn"
               variant="outline"
               size="sm"
-              className="h-8 gap-1.5 text-xs text-zinc-700 bg-white border-zinc-200 hover:bg-zinc-50 font-arabic font-medium"
+              className="h-8 gap-1.5 text-xs text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 font-arabic font-medium"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-500" />
+              <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
               <span>تخصيص الأعمدة</span>
             </Button>
 
@@ -304,45 +304,45 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
         </div>
 
         {/* Table Container */}
-        <Card className="subtle-card rounded-xl p-0 shadow-none border border-zinc-200/80 overflow-hidden bg-white">
+        <Card className="subtle-card rounded-xl p-0 shadow-none border border-zinc-200/80 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900/90 transition-colors">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Table dir="rtl">
                 <TableHeader>
-                  <TableRow className="bg-zinc-50/80 hover:bg-zinc-50/80 border-b border-zinc-200/80">
-                    <TableHead className="text-xs font-bold text-zinc-700 text-right py-3 font-arabic">
+                  <TableRow className="bg-zinc-50/80 dark:bg-zinc-800/80 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/80 border-b border-zinc-200/80 dark:border-zinc-800">
+                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-right py-3 font-arabic">
                       اسم الجهة
                     </TableHead>
-                    <TableHead className="text-xs font-bold text-zinc-700 text-center py-3 font-arabic w-32">
+                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center py-3 font-arabic w-32">
                       نوع العملية
                     </TableHead>
-                    <TableHead className="text-xs font-bold text-zinc-700 text-center py-3 font-arabic w-36">
+                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center py-3 font-arabic w-36">
                       اسلوب الدفع
                     </TableHead>
-                    <TableHead className="text-xs font-bold text-zinc-700 text-right py-3 font-arabic w-40">
+                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-right py-3 font-arabic w-40">
                       القيمة
                     </TableHead>
-                    <TableHead className="text-xs font-bold text-zinc-700 text-right py-3 font-arabic w-44">
+                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-right py-3 font-arabic w-44">
                       التاريخ
                     </TableHead>
-                    <TableHead className="text-xs font-bold text-zinc-700 text-center py-3 font-arabic w-28">
+                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center py-3 font-arabic w-28">
                       الإجراء
                     </TableHead>
                   </TableRow>
                 </TableHeader>
-                {/* TableBody keyed by page to disable morphing jump animations across page changes */}
+
                 <TableBody key={`page-body-${page}`} className="relative">
                   {loading ? (
                     Array.from({ length: PAGE_SIZE }).map((_, i) => (
-                      <TableRow key={i} className="border-b border-zinc-200/40">
+                      <TableRow key={i} className="border-b border-zinc-200/40 dark:border-zinc-800/40">
                         <TableCell colSpan={6} className="py-3 px-4">
-                          <div className="h-4 w-full bg-zinc-200/50 rounded animate-pulse" />
+                          <div className="h-4 w-full bg-zinc-200/50 dark:bg-zinc-800/50 rounded animate-pulse" />
                         </TableCell>
                       </TableRow>
                     ))
                   ) : data.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-12 text-xs text-zinc-400 font-arabic font-medium">
+                      <TableCell colSpan={6} className="text-center py-12 text-xs text-zinc-400 dark:text-zinc-500 font-arabic font-medium">
                         لا توجد معاملات مسجلة
                       </TableCell>
                     </TableRow>
@@ -371,22 +371,22 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
                               exit={{ opacity: 0, y: 15, scale: 0.95 }}
                               transition={{ type: 'spring', stiffness: 300, damping: 28 }}
                               onDoubleClick={() => handleRowDoubleClick(tx.id)}
-                              className={`relative border-b border-zinc-200/60 group cursor-pointer select-none overflow-hidden ${
+                              className={`relative border-b border-zinc-200/60 dark:border-zinc-800/60 group cursor-pointer select-none overflow-hidden transition-colors ${
                                 isNewlyCreated
-                                  ? 'bg-white text-zinc-950 font-extrabold shadow-[0_0_30px_rgba(255,255,255,1)] ring-2 ring-zinc-900'
+                                  ? 'bg-white dark:bg-zinc-800 text-zinc-950 dark:text-white font-extrabold shadow-[0_0_30px_rgba(255,255,255,1)] ring-2 ring-zinc-900 dark:ring-zinc-100'
                                   : isDeleting
-                                  ? 'bg-rose-100 text-rose-700 border-rose-300 font-medium'
+                                  ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800 font-medium'
                                   : isArchiving
-                                  ? 'bg-slate-200 text-slate-600 border-slate-300 font-medium'
+                                  ? 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 font-medium'
                                   : isPinned
-                                  ? 'bg-zinc-100/90 font-semibold border-r-4 border-r-zinc-900 shadow-sm'
+                                  ? 'bg-zinc-100/90 dark:bg-zinc-800/90 font-semibold border-r-4 border-r-zinc-900 dark:border-r-zinc-100 shadow-sm'
                                   : isSwiped
-                                  ? 'bg-zinc-50'
-                                  : 'hover:bg-zinc-50/80 bg-white'
+                                  ? 'bg-zinc-50 dark:bg-zinc-800/70'
+                                  : 'hover:bg-zinc-50/80 dark:hover:bg-zinc-800/60 bg-white dark:bg-zinc-900'
                               }`}
                             >
                               <TableCell colSpan={6} className="p-0 border-none relative">
-                                {/* Underlying Revealed Action Bar (FAR LEFT SIDE under "الإجراء") */}
+                                {/* Underlying Revealed Action Bar */}
                                 <AnimatePresence>
                                   {isSwiped && !isDeleting && !isArchiving && (
                                     <motion.div
@@ -396,7 +396,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
                                       transition={{ duration: 0.2 }}
                                       className="absolute left-0 inset-y-0 flex items-stretch gap-0 z-10 h-full overflow-hidden"
                                     >
-                                      {/* 📌 Pin (تثبيت) Button */}
+                                      {/* Pin Button */}
                                       <button
                                         onClick={(e) => handleTogglePin(tx.id, e)}
                                         title={isPinned ? 'إلغاء التثبيت' : 'تثبيت في الأعلى'}
@@ -407,7 +407,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
                                         <Pin className="w-4 h-4" />
                                       </button>
 
-                                      {/* 📦 Archive (أرشفة) Button */}
+                                      {/* Archive Button */}
                                       <button
                                         onClick={(e) => handleArchive(tx.id, e)}
                                         title="أرشفة المعاملة"
@@ -416,7 +416,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
                                         <Archive className="w-4 h-4" />
                                       </button>
 
-                                      {/* 🗑️ Delete (حذف) Button */}
+                                      {/* Delete Button */}
                                       <button
                                         onClick={(e) => handleOpenDeleteConfirm(tx.id, e)}
                                         title="حذف المعاملة"
@@ -428,7 +428,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
                                   )}
                                 </AnimatePresence>
 
-                                {/* Sliding Row Content Layer (Slides to the RIGHT +144px to reveal left action bar under الإجراء) */}
+                                {/* Sliding Row Content Layer */}
                                 <motion.div
                                   animate={{
                                     x: isDeleting || isArchiving ? -250 : isSwiped ? 144 : 0,
@@ -439,59 +439,61 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
                                   }}
                                   className="flex items-center w-full px-4 py-3 bg-inherit"
                                 >
-                                  {/* 1. اسم الجهة (Entity/Client Name + Pinned Badge) */}
+                                  {/* 1. اسم الجهة */}
                                   <div className="flex-1 min-w-0 text-right font-arabic flex items-center gap-1.5">
                                     {isPinned && (
-                                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-zinc-800 text-white shadow-xs shrink-0" title="مثبتة في الأعلى">
-                                        <Pin className="w-3 h-3 fill-white" />
+                                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 shadow-xs shrink-0" title="مثبتة في الأعلى">
+                                        <Pin className="w-3 h-3 fill-current" />
                                       </span>
                                     )}
-                                    <span className={`text-xs truncate ${isNewlyCreated ? 'text-zinc-950 font-extrabold' : isPinned ? 'font-bold text-zinc-900' : 'font-semibold text-zinc-900'}`}>
+                                    <span className={`text-xs truncate ${isNewlyCreated ? 'text-zinc-950 dark:text-white font-extrabold' : isPinned ? 'font-bold text-zinc-900 dark:text-white' : 'font-semibold text-zinc-900 dark:text-zinc-100'}`}>
                                       {tx.client_name}
                                     </span>
                                   </div>
 
-                                  {/* 2. نوع العملية (Transaction Type: إيداع / سحب) */}
+                                  {/* 2. نوع العملية */}
                                   <div className="w-32 text-center">
                                     <span className={`inline-flex items-center justify-center px-3 py-0.5 rounded-full border text-[11px] font-bold font-arabic ${
                                       isNewlyCreated
-                                        ? 'bg-zinc-900 text-white border-zinc-900'
+                                        ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-zinc-900 dark:border-zinc-100'
                                         : isDeposit
-                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                                        ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                        : 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
                                     }`}>
                                       {isDeposit ? 'إيداع' : 'سحب'}
                                     </span>
                                   </div>
 
-                                  {/* 3. اسلوب الدفع (Payment Method: نقداً, تحويل مصرفي, بطاقة) */}
+                                  {/* 3. اسلوب الدفع */}
                                   <div className="w-36 text-center">
                                     <span className={`inline-block px-2.5 py-0.5 rounded-md border text-[11px] font-medium font-arabic ${
-                                      isNewlyCreated ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-zinc-100 text-zinc-700 border-zinc-200/70'
+                                      isNewlyCreated
+                                        ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-zinc-900 dark:border-zinc-100'
+                                        : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200/70 dark:border-zinc-700'
                                     }`}>
                                       {tx.payment_method || 'نقداً'}
                                     </span>
                                   </div>
 
-                                  {/* 4. القيمة (Amount formatted in د.ل) */}
+                                  {/* 4. القيمة */}
                                   <div className="w-40 text-right font-arabic ar-num">
                                     <span className={`text-xs font-semibold ${
-                                      isNewlyCreated ? 'text-zinc-950 font-extrabold' : isDeposit ? 'text-emerald-600' : 'text-rose-600'
+                                      isNewlyCreated ? 'text-zinc-950 dark:text-white font-extrabold' : isDeposit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                                     }`}>
                                       {isDeposit ? '+' : '-'}{formatCurrency(tx.amount_cents)}
                                     </span>
                                   </div>
 
-                                  {/* 5. التاريخ (Date) */}
-                                  <div className={`w-44 text-right font-arabic ar-num text-xs ${isNewlyCreated ? 'text-zinc-800 font-bold' : 'text-zinc-500'}`} dir="ltr">
+                                  {/* 5. التاريخ */}
+                                  <div className={`w-44 text-right font-arabic ar-num text-xs ${isNewlyCreated ? 'text-zinc-800 dark:text-zinc-200 font-bold' : 'text-zinc-500 dark:text-zinc-400'}`} dir="ltr">
                                     {formatDate(tx.created_at)}
                                   </div>
 
-                                  {/* 6. الإجراء (Actions: Eye & Printer Buttons) */}
+                                  {/* 6. الإجراء */}
                                   <div className="w-28 text-center flex items-center justify-center gap-1.5">
                                     <button
                                       onClick={(e) => { e.stopPropagation(); handleViewReceipt(tx) }}
-                                      className="p-1.5 rounded-md transition-colors border border-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 hover:border-zinc-200"
+                                      className="p-1.5 rounded-md transition-colors border border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-200 dark:hover:border-zinc-700"
                                       title="عرض الإيصال"
                                     >
                                       <Eye className="w-4 h-4" />
@@ -499,7 +501,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
 
                                     <button
                                       onClick={(e) => { e.stopPropagation(); handlePrintReceipt(tx) }}
-                                      className="p-1.5 rounded-md transition-colors border border-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 hover:border-zinc-200"
+                                      className="p-1.5 rounded-md transition-colors border border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-200 dark:hover:border-zinc-700"
                                       title="طباعة الإيصال"
                                     >
                                       <Printer className="w-4 h-4" />
@@ -514,12 +516,12 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
                     </LayoutGroup>
                   )}
 
-                  {/* Fixed 8-row empty slot placeholders to keep pagination controls in 100% stable position */}
+                  {/* Fixed 8-row empty slot placeholders */}
                   {!loading && data.length > 0 && data.length < PAGE_SIZE &&
                     Array.from({ length: PAGE_SIZE - data.length }).map((_, i) => (
                       <TableRow
                         key={`empty-slot-${i}`}
-                        className="h-[53px] bg-zinc-50/40 border-b border-zinc-100/70 pointer-events-none select-none"
+                        className="h-[53px] bg-zinc-50/40 dark:bg-zinc-900/30 border-b border-zinc-100/70 dark:border-zinc-800/50 pointer-events-none select-none"
                       >
                         <TableCell colSpan={6} className="p-0 border-none">
                           <div className="flex items-center w-full px-4 py-3 text-transparent font-arabic text-xs">
@@ -533,8 +535,8 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
             </div>
 
             {/* Pagination Footer */}
-            <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-zinc-200/80 font-arabic">
-              <span className="text-xs text-zinc-500 ar-num">
+            <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-zinc-900 border-t border-zinc-200/80 dark:border-zinc-800 font-arabic">
+              <span className="text-xs text-zinc-500 dark:text-zinc-400 ar-num">
                 عرض {data.length > 0 ? (page - 1) * PAGE_SIZE + 1 : 0} إلى{' '}
                 {Math.min(page * PAGE_SIZE, total)} من إجمالي {total} معاملة
               </span>
@@ -554,18 +556,18 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
                         id="prev-page-btn"
                         variant="outline"
                         size="icon"
-                        className="h-7 w-7 text-xs bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+                        className="h-7 w-7 text-xs bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                         onClick={() => setPage((p) => Math.max(1, p - 1))}
                         disabled={page === 1 || loading}
                       >
                         <ChevronRight className="w-3.5 h-3.5" />
                       </Button>
 
-                      {/* Double-click page indicator to activate audio slider mode */}
+                      {/* Double-click page indicator */}
                       <span
                         onDoubleClick={() => setIsSliderMode(true)}
                         title="انقر مرتين لتفعيل شريط التمرير الصوتي"
-                        className="text-xs font-semibold px-2.5 py-1 rounded-md text-zinc-800 ar-num hover:bg-zinc-100 cursor-pointer select-none transition-colors border border-transparent hover:border-zinc-200"
+                        className="text-xs font-semibold px-2.5 py-1 rounded-md text-zinc-800 dark:text-zinc-200 ar-num hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer select-none transition-colors border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700"
                       >
                         {page} / {totalPages}
                       </span>
@@ -574,7 +576,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
                         id="next-page-btn"
                         variant="outline"
                         size="icon"
-                        className="h-7 w-7 text-xs bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50"
+                        className="h-7 w-7 text-xs bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                         onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                         disabled={page === totalPages || loading}
                       >
@@ -590,17 +592,17 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
                       transition={{ duration: 0.2 }}
                       onDoubleClick={() => setIsSliderMode(false)}
                       title="انقر مرتين للعودة إلى التنقل العادي"
-                      className="relative flex items-center w-52 h-8 px-2.5 bg-zinc-50 rounded-lg border border-zinc-200 cursor-pointer select-none group"
+                      className="relative flex items-center w-52 h-8 px-2.5 bg-zinc-50 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 cursor-pointer select-none group"
                     >
-                      {/* Dynamic Tooltip / Badge above thumb showing "صفحة X من Y" */}
-                      <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-zinc-900 text-white text-[10px] font-bold font-arabic shadow-md pointer-events-none whitespace-nowrap ar-num">
+                      {/* Badge showing "صفحة X من Y" */}
+                      <div className="absolute -top-7 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] font-bold font-arabic shadow-md pointer-events-none whitespace-nowrap ar-num">
                         صفحة {page} من {totalPages}
-                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-zinc-900" />
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-zinc-900 dark:border-t-zinc-100" />
                       </div>
 
-                      {/* Audio Player Style Range Scrub Bar */}
+                      {/* Range Scrub Bar */}
                       <div className="w-full flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-zinc-400 ar-num">1</span>
+                        <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 ar-num">1</span>
                         <input
                           type="range"
                           min={1}
@@ -608,9 +610,9 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
                           step={1}
                           value={page}
                           onChange={(e) => setPage(Number(e.target.value))}
-                          className="w-full h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-zinc-900 focus:outline-none"
+                          className="w-full h-1.5 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-zinc-900 dark:accent-zinc-100 focus:outline-none"
                         />
-                        <span className="text-[10px] font-bold text-zinc-400 ar-num">{totalPages}</span>
+                        <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 ar-num">{totalPages}</span>
                       </div>
                     </motion.div>
                   )}

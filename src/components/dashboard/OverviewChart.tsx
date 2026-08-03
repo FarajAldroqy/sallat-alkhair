@@ -60,19 +60,19 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   const withdrawalsVal = payload.find((p) => p.dataKey === 'withdrawals')?.value ?? 0
 
   return (
-    <div className="bg-white/95 backdrop-blur-md border border-zinc-200/90 rounded-xl p-3 shadow-xl text-right font-arabic text-xs space-y-2 min-w-40 z-50">
+    <div className="bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-zinc-200/90 dark:border-zinc-800 rounded-xl p-3 shadow-xl text-right font-arabic text-xs space-y-2 min-w-40 z-50">
       {/* Date Header */}
-      <p className="font-bold text-zinc-900 border-b border-zinc-100 pb-1 text-center font-sans ar-num">
+      <p className="font-bold text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-zinc-800 pb-1 text-center font-sans ar-num">
         {label}
       </p>
 
       {/* Deposits Row */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-zinc-900" />
-          <span className="text-zinc-600 font-medium">الإيداعات</span>
+          <span className="w-2 h-2 rounded-full bg-zinc-900 dark:bg-zinc-100" />
+          <span className="text-zinc-600 dark:text-zinc-400 font-medium">الإيداعات</span>
         </div>
-        <span className="font-bold text-emerald-600 ar-num font-sans" dir="ltr">
+        <span className="font-bold text-emerald-600 dark:text-emerald-400 ar-num font-sans" dir="ltr">
           +{formatCurrency(Math.round(depositsVal * 100))}
         </span>
       </div>
@@ -80,10 +80,10 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
       {/* Withdrawals Row */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-zinc-400" />
-          <span className="text-zinc-600 font-medium">المسحوبات</span>
+          <span className="w-2 h-2 rounded-full bg-zinc-400 dark:bg-zinc-500" />
+          <span className="text-zinc-600 dark:text-zinc-400 font-medium">المسحوبات</span>
         </div>
-        <span className="font-bold text-rose-600 ar-num font-sans" dir="ltr">
+        <span className="font-bold text-rose-600 dark:text-rose-400 ar-num font-sans" dir="ltr">
           -{formatCurrency(Math.round(withdrawalsVal * 100))}
         </span>
       </div>
@@ -121,27 +121,27 @@ export function OverviewChart() {
   }, [fetchChartData])
 
   return (
-    <Card className="subtle-card rounded-xl p-5 shadow-none border border-zinc-200/80 bg-white" dir="rtl">
+    <Card className="subtle-card rounded-xl p-5 shadow-none border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/90" dir="rtl">
       <CardContent className="p-0 space-y-4">
         {/* Header row matching specifications */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="text-right">
-            <h3 className="text-base font-bold text-zinc-900 font-arabic">
+            <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100 font-arabic">
               التحليلات المالية
             </h3>
-            <p className="text-xs text-zinc-400 font-arabic mt-0.5">
+            <p className="text-xs text-zinc-400 dark:text-zinc-500 font-arabic mt-0.5">
               نظرة عامة على الإيداعات والمسحوبات خلال الفترة المحددة
             </p>
           </div>
 
           {/* Timeframe pill selector buttons */}
-          <div className="flex items-center p-0.5 rounded-lg bg-zinc-100/80 border border-zinc-200/60 self-start sm:self-auto font-arabic">
+          <div className="flex items-center p-0.5 rounded-lg bg-zinc-100/80 dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700/60 self-start sm:self-auto font-arabic">
             <button
               onClick={() => setTimeframe('3m')}
               className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
                 timeframe === '3m'
-                  ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200/80'
-                  : 'text-zinc-500 hover:text-zinc-900 font-medium'
+                  ? 'bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 shadow-sm border border-zinc-200/80 dark:border-zinc-700'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 font-medium'
               }`}
             >
               آخر 3 أشهر
@@ -150,8 +150,8 @@ export function OverviewChart() {
               onClick={() => setTimeframe('30d')}
               className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
                 timeframe === '30d'
-                  ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200/80'
-                  : 'text-zinc-500 hover:text-zinc-900 font-medium'
+                  ? 'bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 shadow-sm border border-zinc-200/80 dark:border-zinc-700'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 font-medium'
               }`}
             >
               آخر 30 يومًا
@@ -160,8 +160,8 @@ export function OverviewChart() {
               onClick={() => setTimeframe('7d')}
               className={`px-3 py-1 text-xs font-semibold rounded-md transition-all ${
                 timeframe === '7d'
-                  ? 'bg-white text-zinc-900 shadow-sm border border-zinc-200/80'
-                  : 'text-zinc-500 hover:text-zinc-900 font-medium'
+                  ? 'bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 shadow-sm border border-zinc-200/80 dark:border-zinc-700'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 font-medium'
               }`}
             >
               آخر 7 أيام
@@ -172,7 +172,7 @@ export function OverviewChart() {
         {/* Recharts AreaChart Wave Container */}
         <div className="w-full pt-3 h-52 relative">
           {loading && (
-            <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] z-10 flex items-center justify-center text-xs text-zinc-400 font-arabic">
+            <div className="absolute inset-0 bg-white/60 dark:bg-zinc-900/60 backdrop-blur-[1px] z-10 flex items-center justify-center text-xs text-zinc-400 font-arabic">
               جاري تحديث الرسوم البيانية...
             </div>
           )}
@@ -185,14 +185,14 @@ export function OverviewChart() {
               <defs>
                 {/* Gradient for Deposits Curve (Top Stream) */}
                 <linearGradient id="fillDeposits" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#18181b" stopOpacity={0.4} />
-                  <stop offset="100%" stopColor="#71717a" stopOpacity={0.03} />
+                  <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
+                  <stop offset="100%" stopColor="#10b981" stopOpacity={0.03} />
                 </linearGradient>
 
                 {/* Gradient for Withdrawals Curve (Bottom Stream) */}
                 <linearGradient id="fillWithdrawals" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#71717a" stopOpacity={0.25} />
-                  <stop offset="100%" stopColor="#ffffff" stopOpacity={0.0} />
+                  <stop offset="0%" stopColor="#f43f5e" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#f43f5e" stopOpacity={0.0} />
                 </linearGradient>
               </defs>
 
@@ -210,7 +210,7 @@ export function OverviewChart() {
               <Tooltip
                 content={<CustomTooltip />}
                 cursor={{
-                  stroke: '#e4e4e7',
+                  stroke: '#52525b',
                   strokeWidth: 1,
                   strokeDasharray: '4 4',
                 }}
@@ -221,7 +221,7 @@ export function OverviewChart() {
                 type="monotone"
                 dataKey="deposits"
                 name="الإيداعات"
-                stroke="#18181b"
+                stroke="#10b981"
                 strokeWidth={2}
                 fill="url(#fillDeposits)"
                 isAnimationActive={true}
@@ -229,7 +229,7 @@ export function OverviewChart() {
                 animationEasing="ease-in-out"
                 activeDot={{
                   r: 4.5,
-                  fill: '#18181b',
+                  fill: '#10b981',
                   stroke: '#ffffff',
                   strokeWidth: 2,
                 }}
@@ -240,7 +240,7 @@ export function OverviewChart() {
                 type="monotone"
                 dataKey="withdrawals"
                 name="المسحوبات"
-                stroke="#71717a"
+                stroke="#f43f5e"
                 strokeWidth={1.5}
                 fill="url(#fillWithdrawals)"
                 isAnimationActive={true}
@@ -248,7 +248,7 @@ export function OverviewChart() {
                 animationEasing="ease-in-out"
                 activeDot={{
                   r: 4.5,
-                  fill: '#52525b',
+                  fill: '#f43f5e',
                   stroke: '#ffffff',
                   strokeWidth: 2,
                 }}

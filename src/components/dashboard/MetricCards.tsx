@@ -67,14 +67,14 @@ function getMetrics(s: Stats | null): MetricDef[] {
 
 function SkeletonCard() {
   return (
-    <Card className="subtle-card rounded-xl p-5 shadow-none border-zinc-200/80 animate-pulse">
+    <Card className="subtle-card rounded-xl p-5 shadow-none border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 animate-pulse">
       <div className="flex items-center justify-between mb-3">
-        <div className="h-3.5 w-24 rounded bg-zinc-200" />
-        <div className="h-5 w-14 rounded-full bg-zinc-200" />
+        <div className="h-3.5 w-24 rounded bg-zinc-200 dark:bg-zinc-800" />
+        <div className="h-5 w-14 rounded-full bg-zinc-200 dark:bg-zinc-800" />
       </div>
-      <div className="h-7 w-32 rounded bg-zinc-200 mb-4" />
-      <div className="h-3 w-28 rounded bg-zinc-200 mb-1" />
-      <div className="h-3 w-36 rounded bg-zinc-200/60" />
+      <div className="h-7 w-32 rounded bg-zinc-200 dark:bg-zinc-800 mb-4" />
+      <div className="h-3 w-28 rounded bg-zinc-200 dark:bg-zinc-800 mb-1" />
+      <div className="h-3 w-36 rounded bg-zinc-200/60 dark:bg-zinc-800/60" />
     </Card>
   )
 }
@@ -100,32 +100,32 @@ export function MetricCards({ stats, loading }: MetricCardsProps) {
           <Card
             key={m.id}
             id={`metric-${m.id}`}
-            className="subtle-card rounded-xl p-5 shadow-none border border-zinc-200/80 hover:border-zinc-300 transition-all"
+            className="subtle-card rounded-xl p-5 shadow-none border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all"
           >
             <CardContent className="p-0">
               {/* Header row: Title + Percentage Pill */}
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-zinc-500">
+                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
                   {m.title}
                 </span>
-                <div className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-zinc-100 border border-zinc-200/80 text-[11px] font-semibold text-zinc-700">
-                  <TrendIcon className="w-3 h-3 text-zinc-600" />
+                <div className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-700 text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
+                  <TrendIcon className="w-3 h-3 text-zinc-600 dark:text-zinc-400" />
                   <span>{m.trendBadge}</span>
                 </div>
               </div>
 
               {/* Main value */}
-              <div className="text-2xl font-bold tracking-tight text-zinc-900 mb-3 font-sans">
+              <div className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white mb-3 font-sans">
                 {m.getValue(stats)}
               </div>
 
               {/* Bottom trend & description */}
               <div className="space-y-0.5">
-                <div className="flex items-center gap-1 text-xs font-medium text-zinc-800">
+                <div className="flex items-center gap-1 text-xs font-medium text-zinc-800 dark:text-zinc-200">
                   <span>{m.trendTitle}</span>
-                  <TrendTitleIcon className="w-3 h-3 text-zinc-600" />
+                  <TrendTitleIcon className="w-3 h-3 text-zinc-600 dark:text-zinc-400" />
                 </div>
-                <p className="text-[11px] text-zinc-400 font-normal">
+                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 font-normal">
                   {m.trendSubtext}
                 </p>
               </div>

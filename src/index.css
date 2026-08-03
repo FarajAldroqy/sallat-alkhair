@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ── Light Minimalist Theme (shadcn/ui blocks) ── */
+    --background: 0 0% 100%;       /* Pure white #ffffff */
+    --foreground: 240 10% 3.9%;     /* Dark zinc #09090b */
+
+    --card: 240 4.8% 97.5%;         /* Soft zinc off-white #f8f8f9 */
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    --primary: 240 5.9% 10%;        /* Almost black #18181b */
+    --primary-foreground: 0 0% 98%;
+
+    --secondary: 240 4.8% 95.9%;    /* Light gray #f4f4f5 */
+    --secondary-foreground: 240 5.9% 10%;
+
+    --muted: 240 4.8% 95.9%;        /* #f4f4f5 */
+    --muted-foreground: 240 3.8% 46.1%; /* #71717a */
+
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --success: 142.1 76.2% 36.3%;
+    --success-foreground: 355.7 100% 97.3%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 9%;
+
+    --border: 240 5.9% 90%;         /* Crisp light border #e4e4e7 */
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+
+    --radius: 0.75rem;
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 3.8% 46.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 240 5.9% 91%;
+    --sidebar-ring: 240 5.9% 10%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    @apply scroll-smooth;
+    background-color: #ffffff;
+  }
+
+  body {
+    @apply bg-white text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+  }
+
+  /* Arabic number styling */
+  .ar-num {
+    font-family: 'IBM Plex Arabic', 'Tajawal', sans-serif;
+    direction: ltr;
+    unicode-bidi: embed;
+  }
+
+  /* Custom Light Scrollbar */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #ffffff;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #e4e4e7;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #a1a1aa;
+  }
+
+  #root {
+    min-height: 100vh;
+    display: flex;
+    background-color: #ffffff;
+  }
+}
+
+@layer utilities {
+  .subtle-card {
+    background-color: #f8f8f9;
+    border: 1px solid #e4e4e7;
+  }
+}

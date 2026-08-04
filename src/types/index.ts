@@ -55,3 +55,11 @@ export interface ChartDataPoint {
 export interface GetChartDataParams {
   timeframe: '7d' | '30d' | '3m'
 }
+
+export type DateFilter =
+  | { mode: 'NONE' }
+  | { mode: 'MONTH'; year: number; month: number } // month index 0-11
+  | { mode: 'DAY'; date: Date }
+  | { mode: 'RANGE'; from: Date; to: Date }
+
+

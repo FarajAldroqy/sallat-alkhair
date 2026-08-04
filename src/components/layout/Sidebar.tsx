@@ -7,6 +7,8 @@ import {
   ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { DateFilter } from '@/types'
+import { SidebarCalendar } from '@/components/sidebar/SidebarCalendar'
 
 interface NavItem {
   id: string
@@ -24,14 +26,29 @@ interface SidebarProps {
   activeSection: string
   onNavigate: (id: string) => void
   onQuickCreate?: () => void
+  dateFilter: DateFilter
+  onDateFilterChange: (filter: DateFilter) => void
+  isOpen?: boolean
 }
 
-export function Sidebar({ activeSection, onNavigate, onQuickCreate }: SidebarProps) {
+export function Sidebar({
+  activeSection,
+  onNavigate,
+  onQuickCreate,
+  dateFilter,
+  onDateFilterChange,
+  isOpen = true,
+}: SidebarProps) {
   return (
-    <aside className="bg-white dark:bg-zinc-900 flex flex-col w-60 min-h-screen border-r border-zinc-200/80 dark:border-zinc-800 shrink-0 select-none text-zinc-900 dark:text-zinc-100 transition-colors duration-300">
-      {/* Workspace Header */}
-      <div className="flex items-center justify-between px-4 py-3.5">
-        <button className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors">
+    <aside
+      className={cn(
+        'bg-white dark:bg-zinc-900 flex flex-col min-h-screen border-r border-zinc-200/80 dark:border-zinc-800 shrink-0 select-none text-zinc-900 dark:text-zinc-100 transition-all duration-300 ease-in-out overflow-hidden',
+        isOpen ? 'w-60 opacity-100' : 'w-0 opacity-0 border-r-0 pointer-events-none'
+      )}
+    >
+      {/* 1. Header / Logo (Acme Inc.) */}
+      <div className="flex items-center justify-between px-4 py-3.5 whitespace-nowrap">
+        <button className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors cursor-pointer">
           <Building2 className="w-4 h-4 text-zinc-800 dark:text-zinc-200" />
           <span>Acme Inc.</span>
           <ChevronDown className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-500" />
@@ -39,10 +56,10 @@ export function Sidebar({ activeSection, onNavigate, onQuickCreate }: SidebarPro
       </div>
 
       {/* Quick Create Button Row */}
-      <div className="px-3 pb-4 flex items-center gap-1.5">
+      <div className="px-3 pb-3 flex items-center gap-1.5 whitespace-nowrap">
         <button
           onClick={onQuickCreate}
-          className="flex-1 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-2 justify-start shadow-sm transition-all active:scale-[0.98]"
+          className="flex-1 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-2 justify-start shadow-sm transition-all active:scale-[0.98] cursor-pointer"
         >
           <div className="w-4 h-4 rounded-full bg-zinc-700 dark:bg-zinc-300 flex items-center justify-center">
             <Plus className="w-3 h-3 text-white dark:text-zinc-900" />
@@ -51,15 +68,15 @@ export function Sidebar({ activeSection, onNavigate, onQuickCreate }: SidebarPro
         </button>
 
         <button
-          className="w-8 h-8 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-400 transition-colors"
+          className="w-8 h-8 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center text-zinc-600 dark:text-zinc-400 transition-colors cursor-pointer"
           title="Inbox"
         >
           <Mail className="w-3.5 h-3.5" />
         </button>
       </div>
 
-      {/* Main Navigation (Dashboard & Treasury ONLY) */}
-      <div className="flex-1 px-3 space-y-1 overflow-y-auto">
+      {/* 2. Main Navigation: Dashboard & Treasury + 3. Calendar Widget directly below Treasury */}
+      <div className="flex-1 px-3 space-y-1 overflow-y-auto whitespace-nowrap">
         {mainNavItems.map((item) => {
           const Icon = item.icon
           const isActive = activeSection === item.id || (item.id === 'dashboard' && activeSection === 'transactions')
@@ -68,7 +85,7 @@ export function Sidebar({ activeSection, onNavigate, onQuickCreate }: SidebarPro
               key={item.id}
               onClick={() => onNavigate(item.id)}
               className={cn(
-                'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors',
+                'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer',
                 isActive
                   ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold'
                   : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100/70 dark:hover:bg-zinc-800/70 hover:text-zinc-900 dark:hover:text-white'
@@ -80,6 +97,9 @@ export function Sidebar({ activeSection, onNavigate, onQuickCreate }: SidebarPro
             </button>
           )
         })}
+
+        {/* 4. Calendar Widget & Filter Reset Button positioned directly under Treasury */}
+        <SidebarCalendar dateFilter={dateFilter} onDateFilterChange={onDateFilterChange} />
       </div>
     </aside>
   )

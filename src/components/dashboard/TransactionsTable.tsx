@@ -9,8 +9,8 @@ import {
   ChevronLeft, ChevronRight, Pin, Trash2, Archive,
 } from 'lucide-react'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
-import { formatCurrency, formatDate } from '@/lib/utils'
-import type { Transaction, TransactionCreate } from '@/types'
+import { formatCurrency, formatDate, filterTransactionsByDate } from '@/lib/utils'
+import type { Transaction, TransactionCreate, DateFilter } from '@/types'
 import { TransactionModal } from './TransactionModal'
 import { ReceiptModal } from './ReceiptModal'
 import { DeleteConfirmModal } from './DeleteConfirmModal'
@@ -29,9 +29,10 @@ function sortTransactions(items: Transaction[]): Transaction[] {
 interface TransactionsTableProps {
   searchValue: string
   onStatsRefresh: () => void
+  dateFilter?: DateFilter
 }
 
-export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsTableProps) {
+export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter }: TransactionsTableProps) {
   const [data, setData] = useState<Transaction[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -62,30 +63,45 @@ export function TransactionsTable({ searchValue, onStatsRefresh }: TransactionsT
   const [selectedReceipt, setSelectedReceipt] = useState<Transaction | null>(null)
   const [receiptOpen, setReceiptOpen] = useState(false)
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-
   const fetchData = useCallback(async () => {
     if (!window.electronAPI) return
     setLoading(true)
     try {
-      const result = await window.electronAPI.getTransactions({
-        page,
-        pageSize: PAGE_SIZE,
-        search: searchValue,
-        type: typeFilter,
-      })
-      setData(sortTransactions(result.data))
-      setTotal(result.total)
+      if (dateFilter && dateFilter.mode !== 'NONE') {
+        const result = await window.electronAPI.getTransactions({
+          page: 1,
+          pageSize: 1000,
+          search: searchValue,
+          type: typeFilter,
+        })
+        const dateFiltered = filterTransactionsByDate(result.data, dateFilter)
+        const sorted = sortTransactions(dateFiltered)
+        setTotal(sorted.length)
+        // Paginate client-side
+        const start = (page - 1) * PAGE_SIZE
+        setData(sorted.slice(start, start + PAGE_SIZE))
+      } else {
+        const result = await window.electronAPI.getTransactions({
+          page,
+          pageSize: PAGE_SIZE,
+          search: searchValue,
+          type: typeFilter,
+        })
+        setData(sortTransactions(result.data))
+        setTotal(result.total)
+      }
     } catch (err) {
       console.error('Failed to fetch transactions', err)
     } finally {
       setLoading(false)
     }
-  }, [page, searchValue, typeFilter])
+  }, [page, searchValue, typeFilter, dateFilter])
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   useEffect(() => {
     setPage(1)
-  }, [searchValue, typeFilter])
+  }, [searchValue, typeFilter, dateFilter])
 
   useEffect(() => {
     fetchData()

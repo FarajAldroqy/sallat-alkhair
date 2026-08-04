@@ -41,3 +41,39 @@ export function formatShort(cents: number): string {
   }
   return formatCurrency(cents)
 }
+
+/** Filter transactions array by DateFilter mode (NONE, MONTH, DAY, RANGE) */
+export function filterTransactionsByDate<T extends { created_at: string }>(
+  items: T[],
+  filter?: { mode: string; year?: number; month?: number; date?: Date; from?: Date; to?: Date }
+): T[] {
+  if (!filter || filter.mode === 'NONE') return items
+
+  return items.filter((tx) => {
+    const txDate = new Date(tx.created_at)
+    if (isNaN(txDate.getTime())) return true
+
+    if (filter.mode === 'MONTH' && filter.year !== undefined && filter.month !== undefined) {
+      return txDate.getFullYear() === filter.year && txDate.getMonth() === filter.month
+    }
+
+    if (filter.mode === 'DAY' && filter.date) {
+      const d = filter.date
+      return (
+        txDate.getFullYear() === d.getFullYear() &&
+        txDate.getMonth() === d.getMonth() &&
+        txDate.getDate() === d.getDate()
+      )
+    }
+
+    if (filter.mode === 'RANGE' && filter.from && filter.to) {
+      const start = new Date(filter.from).setHours(0, 0, 0, 0)
+      const end = new Date(filter.to).setHours(23, 59, 59, 999)
+      const txTime = txDate.getTime()
+      return txTime >= start && txTime <= end
+    }
+
+    return true
+  })
+}
+

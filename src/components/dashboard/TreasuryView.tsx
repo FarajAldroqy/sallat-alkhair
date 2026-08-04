@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
@@ -6,10 +6,12 @@ import {
 } from '@/components/ui/table'
 import {
   Coins, Search, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Wallet,
+  Pin, Trash2, Archive,
 } from 'lucide-react'
-import { motion } from 'framer-motion'
-import { formatCurrency } from '@/lib/utils'
-import type { Transaction, Stats } from '@/types'
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
+import { formatCurrency, filterTransactionsByDate } from '@/lib/utils'
+import type { Transaction, Stats, DateFilter } from '@/types'
+import { DeleteConfirmModal } from './DeleteConfirmModal'
 
 interface EntityBalance {
   name: string
@@ -17,6 +19,10 @@ interface EntityBalance {
   withdrawnCents: number
   netCents: number
   transactionCount: number
+}
+
+interface TreasuryViewProps {
+  dateFilter?: DateFilter
 }
 
 export function KryptoniteFishbowl({ totalAmount = "456,851,795.00" }: { totalAmount?: string }) {
@@ -110,11 +116,19 @@ export function KryptoniteFishbowl({ totalAmount = "456,851,795.00" }: { totalAm
   );
 }
 
-export function TreasuryView() {
+export function TreasuryView({ dateFilter }: TreasuryViewProps) {
   const [stats, setStats] = useState<Stats | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Double-click row slide action bar states (identical to Dashboard TransactionsTable)
+  const [swipedRowName, setSwipedRowName] = useState<string | null>(null)
+  const [pinnedEntities, setPinnedEntities] = useState<string[]>([])
+  const [deletingName, setDeletingName] = useState<string | null>(null)
+  const [archivingName, setArchivingName] = useState<string | null>(null)
+  const [pendingDeleteName, setPendingDeleteName] = useState<string | null>(null)
+  const tableRef = useRef<HTMLDivElement>(null)
 
   const loadTreasuryData = useCallback(async () => {
     if (!window.electronAPI) return
@@ -137,11 +151,84 @@ export function TreasuryView() {
     loadTreasuryData()
   }, [loadTreasuryData])
 
-  // Group transactions by entity name (client_name)
+  // Click-outside and Escape key listener to dismiss swiped row
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (swipedRowName !== null && tableRef.current && !tableRef.current.contains(e.target as Node)) {
+        setSwipedRowName(null)
+      }
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && swipedRowName !== null) {
+        setSwipedRowName(null)
+      }
+    }
+
+    window.addEventListener('click', handleClickOutside)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('click', handleClickOutside)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [swipedRowName])
+
+  // Double-click handler
+  const handleRowDoubleClick = (name: string) => {
+    setSwipedRowName((prev) => (prev === name ? null : name))
+  }
+
+  // Toggle Pin handler
+  const handleTogglePin = (name: string, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setSwipedRowName(null)
+    setPinnedEntities((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+    )
+  }
+
+  // Open Delete Confirm handler
+  const handleOpenDeleteConfirm = (name: string, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setSwipedRowName(null)
+    setPendingDeleteName(name)
+  }
+
+  // Confirm Delete handler
+  const handleConfirmDelete = () => {
+    if (!pendingDeleteName) return
+    const targetName = pendingDeleteName
+    setPendingDeleteName(null)
+    setDeletingName(targetName)
+
+    setTimeout(() => {
+      setTransactions((prev) => prev.filter((t) => t.client_name.trim() !== targetName))
+      setDeletingName(null)
+    }, 350)
+  }
+
+  // Archive handler
+  const handleArchive = (name: string, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setSwipedRowName(null)
+    setArchivingName(name)
+
+    setTimeout(() => {
+      setTransactions((prev) => prev.filter((t) => t.client_name.trim() !== name))
+      setArchivingName(null)
+    }, 350)
+  }
+
+  // Filter transactions dynamically by dateFilter
+  const filteredTransactions = useMemo(() => {
+    return filterTransactionsByDate(transactions, dateFilter)
+  }, [transactions, dateFilter])
+
+  // Group transactions by entity name (client_name) based on filtered transactions
   const entityBalances = useMemo(() => {
     const map = new Map<string, EntityBalance>()
 
-    transactions.forEach((tx) => {
+    filteredTransactions.forEach((tx) => {
       const name = tx.client_name.trim() || 'جهة غير معرفة'
       const existing = map.get(name) || {
         name,
@@ -162,8 +249,16 @@ export function TreasuryView() {
       map.set(name, existing)
     })
 
-    return Array.from(map.values()).sort((a, b) => Math.abs(b.netCents) - Math.abs(a.netCents))
-  }, [transactions])
+    const list = Array.from(map.values()).sort((a, b) => Math.abs(b.netCents) - Math.abs(a.netCents))
+
+    // Sort pinned entities to top
+    return list.sort((a, b) => {
+      const pinA = pinnedEntities.includes(a.name) ? 1 : 0
+      const pinB = pinnedEntities.includes(b.name) ? 1 : 0
+      if (pinA !== pinB) return pinB - pinA
+      return 0
+    })
+  }, [filteredTransactions, pinnedEntities])
 
   // Filtered entity balances based on search query
   const filteredEntities = useMemo(() => {
@@ -172,12 +267,30 @@ export function TreasuryView() {
     return entityBalances.filter((e) => e.name.toLowerCase().includes(q))
   }, [entityBalances, searchQuery])
 
-  const totalBalanceCents = stats?.total_balance_cents ?? 0
-  const totalDepositsCents = stats?.total_deposits_cents ?? 0
-  const totalWithdrawalsCents = stats?.total_withdrawals_cents ?? 0
+  // Recalculate totals synchronously if date filter is active, otherwise use global stats
+  const { totalDepositsCents, totalWithdrawalsCents, totalBalanceCents } = useMemo(() => {
+    if (dateFilter && dateFilter.mode !== 'NONE') {
+      let dep = 0
+      let withd = 0
+      filteredTransactions.forEach((tx) => {
+        if (tx.type === 'DEPOSIT') dep += tx.amount_cents
+        else if (tx.type === 'WITHDRAWAL') withd += tx.amount_cents
+      })
+      return {
+        totalDepositsCents: dep,
+        totalWithdrawalsCents: withd,
+        totalBalanceCents: dep - withd,
+      }
+    }
+    return {
+      totalDepositsCents: stats?.total_deposits_cents ?? 0,
+      totalWithdrawalsCents: stats?.total_withdrawals_cents ?? 0,
+      totalBalanceCents: stats?.total_balance_cents ?? 0,
+    }
+  }, [dateFilter, filteredTransactions, stats])
 
   return (
-    <div className="flex flex-col gap-8 p-6 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 min-h-full font-arabic transition-colors duration-300" dir="rtl">
+    <div className="flex flex-col gap-8 p-6 bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 min-h-full font-arabic transition-colors duration-300" dir="rtl" ref={tableRef}>
       {/* Top Header Title */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -307,7 +420,7 @@ export function TreasuryView() {
                 </TableRow>
               </TableHeader>
 
-              <TableBody>
+              <TableBody className="relative">
                 {loading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i} className="border-b border-zinc-200/40 dark:border-zinc-800/40">
@@ -323,59 +436,157 @@ export function TreasuryView() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredEntities.map((entity) => {
-                    const isPositiveNet = entity.netCents >= 0
-                    return (
-                      <TableRow
-                        key={entity.name}
-                        className="border-b border-zinc-200/60 dark:border-zinc-800/60 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/50 transition-colors"
-                      >
-                        {/* Entity Name */}
-                        <TableCell className="py-3 px-4 font-arabic">
-                          <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 block">
-                            {entity.name}
-                          </span>
-                        </TableCell>
+                  <LayoutGroup id="treasury-entities-table">
+                    <AnimatePresence mode="popLayout" initial={false}>
+                      {filteredEntities.map((entity) => {
+                        const isPositiveNet = entity.netCents >= 0
+                        const isPinned = pinnedEntities.includes(entity.name)
+                        const isSwiped = swipedRowName === entity.name
+                        const isDeleting = deletingName === entity.name
+                        const isArchiving = archivingName === entity.name
 
-                        {/* Transaction Count */}
-                        <TableCell className="py-3 px-4 text-center font-arabic ar-num">
-                          <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
-                            {entity.transactionCount} معاملة
-                          </span>
-                        </TableCell>
+                        return (
+                          <motion.tr
+                            layout="position"
+                            layoutId={`treasury-row-${entity.name}`}
+                            key={entity.name}
+                            initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                            animate={
+                              isDeleting || isArchiving
+                                ? { opacity: 0, x: -250, scale: 0.95 }
+                                : { opacity: 1, y: 0, scale: 1 }
+                            }
+                            exit={{ opacity: 0, y: 15, scale: 0.95 }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+                            onDoubleClick={() => handleRowDoubleClick(entity.name)}
+                            className={`relative border-b border-zinc-200/60 dark:border-zinc-800/60 group cursor-pointer select-none overflow-hidden transition-colors ${
+                              isDeleting
+                                ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800 font-medium'
+                                : isArchiving
+                                ? 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 font-medium'
+                                : isPinned
+                                ? 'bg-zinc-100/90 dark:bg-zinc-800/90 font-semibold border-r-4 border-r-zinc-900 dark:border-r-zinc-100 shadow-sm'
+                                : isSwiped
+                                ? 'bg-zinc-50 dark:bg-zinc-800/70'
+                                : 'hover:bg-zinc-50/80 dark:hover:bg-zinc-800/60 bg-white dark:bg-zinc-900'
+                            }`}
+                          >
+                            <TableCell colSpan={5} className="p-0 border-none relative">
+                              {/* Underlying Revealed Action Bar (FAR LEFT SIDE) */}
+                              <AnimatePresence>
+                                {isSwiped && !isDeleting && !isArchiving && (
+                                  <motion.div
+                                    initial={{ opacity: 0, x: -20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -20 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="absolute left-0 inset-y-0 flex items-stretch gap-0 z-10 h-full overflow-hidden"
+                                  >
+                                    {/* 📌 Pin Button */}
+                                    <button
+                                      onClick={(e) => handleTogglePin(entity.name, e)}
+                                      title={isPinned ? 'إلغاء التثبيت' : 'تثبيت في الأعلى'}
+                                      className={`w-12 h-full text-white flex items-center justify-center transition-colors active:opacity-90 ${
+                                        isPinned ? 'bg-amber-600 hover:bg-amber-700' : 'bg-zinc-800 hover:bg-zinc-900'
+                                      }`}
+                                    >
+                                      <Pin className="w-4 h-4" />
+                                    </button>
 
-                        {/* Total Deposited */}
-                        <TableCell className="py-3 px-4 text-right font-arabic ar-num">
-                          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                            +{formatCurrency(entity.depositedCents)} د.ل
-                          </span>
-                        </TableCell>
+                                    {/* 📦 Archive Button */}
+                                    <button
+                                      onClick={(e) => handleArchive(entity.name, e)}
+                                      title="أرشفة الجهة"
+                                      className="w-12 h-full bg-sky-500 hover:bg-sky-600 text-white flex items-center justify-center transition-colors active:opacity-90"
+                                    >
+                                      <Archive className="w-4 h-4" />
+                                    </button>
 
-                        {/* Total Withdrawn */}
-                        <TableCell className="py-3 px-4 text-right font-arabic ar-num">
-                          <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
-                            -{formatCurrency(entity.withdrawnCents)} د.ل
-                          </span>
-                        </TableCell>
+                                    {/* 🗑️ Delete Button */}
+                                    <button
+                                      onClick={(e) => handleOpenDeleteConfirm(entity.name, e)}
+                                      title="حذف الجهة"
+                                      className="w-12 h-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center transition-colors active:opacity-90"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
 
-                        {/* Net Balance */}
-                        <TableCell className="py-3 px-4 text-right font-arabic ar-num">
-                          <span className={`text-xs font-bold px-2.5 py-1 rounded-md inline-block border ${isPositiveNet
-                              ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
-                              : 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
-                            }`}>
-                            {isPositiveNet ? '+' : ''}{formatCurrency(entity.netCents)} د.ل
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
+                              {/* Sliding Row Content Layer (Slides RIGHT +144px to reveal left action bar) */}
+                              <motion.div
+                                animate={{
+                                  x: isDeleting || isArchiving ? -250 : isSwiped ? 144 : 0,
+                                  opacity: isDeleting || isArchiving ? 0 : 1,
+                                }}
+                                transition={{
+                                  x: { type: 'spring', stiffness: 320, damping: 28 },
+                                }}
+                                className="flex items-center w-full px-4 py-3 bg-inherit"
+                              >
+                                {/* 1. اسم الجهة (Entity Name + Pin Badge) */}
+                                <div className="flex-1 min-w-0 text-right font-arabic flex items-center gap-1.5">
+                                  {isPinned && (
+                                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 shadow-xs shrink-0" title="مثبتة في الأعلى">
+                                      <Pin className="w-3 h-3 fill-current" />
+                                    </span>
+                                  )}
+                                  <span className={`text-xs truncate ${isPinned ? 'font-bold text-zinc-900 dark:text-white' : 'font-bold text-zinc-900 dark:text-zinc-100'}`}>
+                                    {entity.name}
+                                  </span>
+                                </div>
+
+                                {/* 2. عدد المعاملات */}
+                                <div className="w-32 text-center font-arabic ar-num">
+                                  <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
+                                    {entity.transactionCount} معاملة
+                                  </span>
+                                </div>
+
+                                {/* 3. إجمالي المودعات */}
+                                <div className="w-44 text-right font-arabic ar-num">
+                                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                    +{formatCurrency(entity.depositedCents)} د.ل
+                                  </span>
+                                </div>
+
+                                {/* 4. إجمالي المسحوبات */}
+                                <div className="w-44 text-right font-arabic ar-num">
+                                  <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
+                                    -{formatCurrency(entity.withdrawnCents)} د.ل
+                                  </span>
+                                </div>
+
+                                {/* 5. صافي الحساب */}
+                                <div className="w-48 text-right font-arabic ar-num">
+                                  <span className={`text-xs font-bold px-2.5 py-1 rounded-md inline-block border ${isPositiveNet
+                                      ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                      : 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                                    }`}>
+                                    {isPositiveNet ? '+' : ''}{formatCurrency(entity.netCents)} د.ل
+                                  </span>
+                                </div>
+                              </motion.div>
+                            </TableCell>
+                          </motion.tr>
+                        )
+                      })}
+                    </AnimatePresence>
+                  </LayoutGroup>
                 )}
               </TableBody>
             </Table>
           </div>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Modal for Treasury Entities */}
+      <DeleteConfirmModal
+        open={pendingDeleteName !== null}
+        onClose={() => setPendingDeleteName(null)}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   )
 }

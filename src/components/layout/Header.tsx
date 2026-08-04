@@ -1,4 +1,4 @@
-import { Sidebar as SidebarIcon, Search, User } from 'lucide-react'
+import { Sidebar as SidebarIcon, Search, User, Calendar as CalendarIcon, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
@@ -10,27 +10,73 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { DarkModeToggle } from '@/components/ui/DarkModeToggle'
+import type { DateFilter } from '@/types'
+
+const MONTH_NAMES_AR = [
+  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
+]
 
 interface HeaderProps {
   searchValue: string
   onSearchChange: (v: string) => void
   sectionTitle: string
+  dateFilter?: DateFilter
+  onResetDateFilter?: () => void
+  onToggleSidebar?: () => void
 }
 
-export function Header({ searchValue, onSearchChange, sectionTitle }: HeaderProps) {
+export function Header({
+  searchValue,
+  onSearchChange,
+  sectionTitle,
+  dateFilter,
+  onResetDateFilter,
+  onToggleSidebar,
+}: HeaderProps) {
+  let filterText = ''
+  if (dateFilter && dateFilter.mode === 'MONTH') {
+    filterText = `${MONTH_NAMES_AR[dateFilter.month]} ${dateFilter.year}`
+  } else if (dateFilter && dateFilter.mode === 'DAY') {
+    const d = dateFilter.date
+    filterText = `${d.getDate()} ${MONTH_NAMES_AR[d.getMonth()]} ${d.getFullYear()}`
+  } else if (dateFilter && dateFilter.mode === 'RANGE') {
+    const f = dateFilter.from
+    const t = dateFilter.to
+    filterText = `${f.getDate()} ${MONTH_NAMES_AR[f.getMonth()]} - ${t.getDate()} ${MONTH_NAMES_AR[t.getMonth()]} ${t.getFullYear()}`
+  }
+
   return (
     <header className="sticky top-0 z-20 flex items-center justify-between px-6 h-13 border-b border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 transition-colors duration-300">
-      {/* Left side: Panel icon + Title */}
+      {/* Left side: Panel icon + Dynamic Title + Active Filter Badge */}
       <div className="flex items-center gap-3">
         <button
-          className="p-1 rounded-md text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-          title="Toggle Sidebar"
+          onClick={onToggleSidebar}
+          className="p-1 rounded-md text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+          title="إخفاء / إظهار القائمة الجانبية"
         >
           <SidebarIcon className="w-4 h-4" />
         </button>
         <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-          {sectionTitle || 'Documents'}
+          {sectionTitle || 'Dashboard'}
         </span>
+
+        {/* Active Filter Indicator Badge */}
+        {dateFilter && dateFilter.mode !== 'NONE' && (
+          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800 text-xs font-arabic text-emerald-800 dark:text-emerald-300">
+            <CalendarIcon className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+            <span className="font-semibold ar-num">{filterText}</span>
+            {onResetDateFilter && (
+              <button
+                onClick={onResetDateFilter}
+                className="hover:bg-emerald-200/60 dark:hover:bg-emerald-900 rounded-full p-0.5 transition-colors cursor-pointer"
+                title="إلغاء الفلترة"
+              >
+                <X className="w-3 h-3 text-emerald-700 dark:text-emerald-300" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Right side: Dark Mode Toggle, GitHub link, search & user profile */}
@@ -66,7 +112,7 @@ export function Header({ searchValue, onSearchChange, sectionTitle }: HeaderProp
         {/* User avatar */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-1.5 focus:outline-none">
+            <button className="flex items-center gap-1.5 focus:outline-none cursor-pointer">
               <Avatar className="w-6 h-6 border border-zinc-200 dark:border-zinc-700">
                 <AvatarFallback className="text-[10px] bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-100 font-semibold">
                   FA

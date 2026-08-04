@@ -6,12 +6,15 @@ import {
 } from '@/components/ui/table'
 import {
   Coins, Search, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Wallet,
-  Pin, Trash2, Archive,
+  Pin, Trash2, Archive, Plus, FileText, Filter,
 } from 'lucide-react'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import { formatCurrency, filterTransactionsByDate } from '@/lib/utils'
 import type { Transaction, Stats, DateFilter } from '@/types'
 import { DeleteConfirmModal } from './DeleteConfirmModal'
+import {
+  TreasuryDrawer, DrawerMode, AdvancedFilterState, defaultAdvancedFilter,
+} from './TreasuryDrawer'
 
 interface EntityBalance {
   name: string
@@ -23,14 +26,26 @@ interface EntityBalance {
 
 interface TreasuryViewProps {
   dateFilter?: DateFilter
+  onArchiveEntity?: (entity: EntityBalance) => void
+  onDeleteEntity?: (entity: EntityBalance) => void
 }
 
-export function KryptoniteFishbowl({ totalAmount = "456,851,795.00" }: { totalAmount?: string }) {
-  // تنظيف رمز العملة لتجنب التكرار
-  const cleanAmount = totalAmount.replace(/د\.ل/g, "").trim();
+export function KryptoniteFishbowl({
+  totalAmount = "456,851,795.00",
+  onOpenDrawer,
+}: {
+  totalAmount?: string
+  onOpenDrawer?: (mode: DrawerMode) => void
+}) {
+  const [showActions, setShowActions] = useState(false)
+  const cleanAmount = totalAmount.replace(/د\.ل/g, "").trim()
 
   return (
-    <div className="flex flex-col items-center justify-center my-6 select-none">
+    <div
+      onMouseEnter={() => setShowActions(true)}
+      onMouseLeave={() => setShowActions(false)}
+      className="relative flex flex-col items-center justify-center my-6 select-none"
+    >
       {/* Container الرئيسي مع أنيميشن التكبير عند مرور الماوس (Hover Zoom) */}
       <motion.div
         whileHover={{ scale: 1.05 }}
@@ -110,17 +125,91 @@ export function KryptoniteFishbowl({ totalAmount = "456,851,795.00" }: { totalAm
         <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-transparent via-white/5 to-white/30 pointer-events-none z-40" />
       </motion.div>
 
+      {/* 3 CURVED RADIAL FLOATING ACTION BUTTONS ALONG LEFT BOWL ARC */}
+      <AnimatePresence>
+        {showActions && (
+          <>
+            {/* Top Button: Add Entity (top-[18%] -left-11) */}
+            <motion.button
+              key="btn-add-entity"
+              initial={{ opacity: 0, scale: 0.8, x: 20 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.8, x: 15 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowActions(false)
+                onOpenDrawer?.('ADD_ENTITY')
+              }}
+              className="group absolute top-[18%] -left-11 z-40 w-12 h-12 rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-2 border-white dark:border-zinc-700 shadow-xl flex items-center justify-center cursor-pointer hover:scale-110 active:scale-95 transition-all"
+              title="إضافة جهة جديدة"
+            >
+              <Plus className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+              <span className="absolute right-full mr-2.5 px-2.5 py-1 rounded-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 text-[11px] font-bold font-arabic whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-md">
+                إضافة جهة
+              </span>
+            </motion.button>
+
+            {/* Middle Button: Print Reports (top-[43%] -translate-y-1/2 -left-16) */}
+            <motion.button
+              key="btn-print-reports"
+              initial={{ opacity: 0, scale: 0.8, x: 20 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.8, x: 15 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowActions(false)
+                onOpenDrawer?.('PRINT_REPORT')
+              }}
+              className="group absolute top-[43%] -translate-y-1/2 -left-16 z-40 w-12 h-12 rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-2 border-white dark:border-zinc-700 shadow-xl flex items-center justify-center cursor-pointer hover:scale-110 active:scale-95 transition-all"
+              title="طباعة تقارير الخزينة"
+            >
+              <FileText className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              <span className="absolute right-full mr-2.5 px-2.5 py-1 rounded-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 text-[11px] font-bold font-arabic whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-md">
+                طباعة تقارير
+              </span>
+            </motion.button>
+
+            {/* Bottom Button: Advanced Filter (bottom-[18%] -left-11) */}
+            <motion.button
+              key="btn-advanced-filter"
+              initial={{ opacity: 0, scale: 0.8, x: 20 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.8, x: 15 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowActions(false)
+                onOpenDrawer?.('ADVANCED_FILTER')
+              }}
+              className="group absolute bottom-[18%] -left-11 z-40 w-12 h-12 rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-2 border-white dark:border-zinc-700 shadow-xl flex items-center justify-center cursor-pointer hover:scale-110 active:scale-95 transition-all"
+              title="الفلترة المتقدمة"
+            >
+              <Filter className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+              <span className="absolute right-full mr-2.5 px-2.5 py-1 rounded-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 text-[11px] font-bold font-arabic whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity shadow-md">
+                فلترة متقدمة
+              </span>
+            </motion.button>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* ظل الحوض السفلي الـ 3D */}
       <div className="w-52 h-4 bg-emerald-950/20 blur-md rounded-full mt-3" />
     </div>
   );
 }
 
-export function TreasuryView({ dateFilter }: TreasuryViewProps) {
+export function TreasuryView({ dateFilter, onArchiveEntity, onDeleteEntity }: TreasuryViewProps) {
   const [stats, setStats] = useState<Stats | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Right Slide-over Drawer State
+  const [drawerMode, setDrawerMode] = useState<DrawerMode>(null)
+  const [advancedFilter, setAdvancedFilter] = useState<AdvancedFilterState>(defaultAdvancedFilter)
 
   // Double-click row slide action bar states (identical to Dashboard TransactionsTable)
   const [swipedRowName, setSwipedRowName] = useState<string | null>(null)
@@ -151,7 +240,7 @@ export function TreasuryView({ dateFilter }: TreasuryViewProps) {
     loadTreasuryData()
   }, [loadTreasuryData])
 
-  // Click-outside and Escape key listener to dismiss swiped row
+  // Click-outside and Escape key listener to dismiss swiped row or open drawer
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (swipedRowName !== null && tableRef.current && !tableRef.current.contains(e.target as Node)) {
@@ -160,8 +249,9 @@ export function TreasuryView({ dateFilter }: TreasuryViewProps) {
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && swipedRowName !== null) {
-        setSwipedRowName(null)
+      if (e.key === 'Escape') {
+        if (drawerMode !== null) setDrawerMode(null)
+        if (swipedRowName !== null) setSwipedRowName(null)
       }
     }
 
@@ -171,7 +261,7 @@ export function TreasuryView({ dateFilter }: TreasuryViewProps) {
       window.removeEventListener('click', handleClickOutside)
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [swipedRowName])
+  }, [swipedRowName, drawerMode])
 
   // Double-click handler
   const handleRowDoubleClick = (name: string) => {
@@ -201,6 +291,11 @@ export function TreasuryView({ dateFilter }: TreasuryViewProps) {
     setPendingDeleteName(null)
     setDeletingName(targetName)
 
+    const targetEntity = entityBalances.find((item) => item.name === targetName)
+    if (targetEntity) {
+      onDeleteEntity?.(targetEntity)
+    }
+
     setTimeout(() => {
       setTransactions((prev) => prev.filter((t) => t.client_name.trim() !== targetName))
       setDeletingName(null)
@@ -213,10 +308,45 @@ export function TreasuryView({ dateFilter }: TreasuryViewProps) {
     setSwipedRowName(null)
     setArchivingName(name)
 
+    const targetEntity = entityBalances.find((item) => item.name === name)
+    if (targetEntity) {
+      onArchiveEntity?.(targetEntity)
+    }
+
     setTimeout(() => {
       setTransactions((prev) => prev.filter((t) => t.client_name.trim() !== name))
       setArchivingName(null)
     }, 350)
+  }
+
+  // Add Entity Submit Callback
+  const handleAddEntitySuccess = async (
+    name: string,
+    amountCents: number,
+    type: 'DEPOSIT' | 'WITHDRAWAL',
+    _note: string
+  ) => {
+    if (window.electronAPI?.createTransaction) {
+      await window.electronAPI.createTransaction({
+        type,
+        client_name: name,
+        amount_cents: amountCents,
+        payment_method: 'تحويل مصرفي',
+      })
+      await loadTreasuryData()
+    } else {
+      // Fallback local update
+      const newTx: Transaction = {
+        id: Date.now(),
+        type,
+        client_name: name,
+        amount_cents: amountCents,
+        payment_method: 'تحويل مصرفي',
+        created_at: new Date().toISOString(),
+        is_pinned: 0,
+      }
+      setTransactions((prev) => [newTx, ...prev])
+    }
   }
 
   // Filter transactions dynamically by dateFilter
@@ -249,7 +379,49 @@ export function TreasuryView({ dateFilter }: TreasuryViewProps) {
       map.set(name, existing)
     })
 
-    const list = Array.from(map.values()).sort((a, b) => Math.abs(b.netCents) - Math.abs(a.netCents))
+    let list = Array.from(map.values())
+
+    // Apply Advanced Filters (deposit range, withdrawal range, net range)
+    const { minDeposit, maxDeposit, minWithdrawal, maxWithdrawal, minNet, maxNet, sortBy, sortOrder } = advancedFilter
+
+    if (minDeposit) {
+      const minCents = parseFloat(minDeposit) * 100
+      list = list.filter((e) => e.depositedCents >= minCents)
+    }
+    if (maxDeposit) {
+      const maxCents = parseFloat(maxDeposit) * 100
+      list = list.filter((e) => e.depositedCents <= maxCents)
+    }
+    if (minWithdrawal) {
+      const minCents = parseFloat(minWithdrawal) * 100
+      list = list.filter((e) => e.withdrawnCents >= minCents)
+    }
+    if (maxWithdrawal) {
+      const maxCents = parseFloat(maxWithdrawal) * 100
+      list = list.filter((e) => e.withdrawnCents <= maxCents)
+    }
+    if (minNet) {
+      const minCents = parseFloat(minNet) * 100
+      list = list.filter((e) => e.netCents >= minCents)
+    }
+    if (maxNet) {
+      const maxCents = parseFloat(maxNet) * 100
+      list = list.filter((e) => e.netCents <= maxCents)
+    }
+
+    // Multi-Sorting
+    list.sort((a, b) => {
+      let valA: number | string = a[sortBy]
+      let valB: number | string = b[sortBy]
+
+      if (typeof valA === 'string') {
+        valA = valA.toLowerCase()
+        valB = (valB as string).toLowerCase()
+        return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA)
+      } else {
+        return sortOrder === 'asc' ? (valA as number) - (valB as number) : (valB as number) - (valA as number)
+      }
+    })
 
     // Sort pinned entities to top
     return list.sort((a, b) => {
@@ -258,7 +430,7 @@ export function TreasuryView({ dateFilter }: TreasuryViewProps) {
       if (pinA !== pinB) return pinB - pinA
       return 0
     })
-  }, [filteredTransactions, pinnedEntities])
+  }, [filteredTransactions, pinnedEntities, advancedFilter])
 
   // Filtered entity balances based on search query
   const filteredEntities = useMemo(() => {
@@ -306,13 +478,16 @@ export function TreasuryView({ dateFilter }: TreasuryViewProps) {
         </div>
       </div>
 
-      {/* CENTERED HERO SECTION: HUGE 3D KRYPTONITE GLASS FISHBOWL */}
+      {/* CENTERED HERO SECTION: HUGE 3D KRYPTONITE GLASS FISHBOWL WITH FLOATING ACTION BUTTONS */}
       <div className="flex flex-col items-center justify-center py-2 relative">
         {/* Background Ambient Kryptonite Neon Radial Glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[440px] h-[440px] bg-emerald-400/20 dark:bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
 
         {/* 3D KRYPTONITE FISHBOWL HERO WIDGET */}
-        <KryptoniteFishbowl totalAmount={formatCurrency(totalBalanceCents)} />
+        <KryptoniteFishbowl
+          totalAmount={formatCurrency(totalBalanceCents)}
+          onOpenDrawer={(mode) => setDrawerMode(mode)}
+        />
 
         {/* 3 SUMMARY METRIC CARDS ROW BELOW FISHBOWL */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl w-full mt-4">
@@ -586,6 +761,21 @@ export function TreasuryView({ dateFilter }: TreasuryViewProps) {
         open={pendingDeleteName !== null}
         onClose={() => setPendingDeleteName(null)}
         onConfirm={handleConfirmDelete}
+      />
+
+      {/* Right Slide-over Drawer (Add Entity, Print Reports, Advanced Filter) */}
+      <TreasuryDrawer
+        mode={drawerMode}
+        onClose={() => setDrawerMode(null)}
+        onAddEntitySuccess={handleAddEntitySuccess}
+        entities={filteredEntities}
+        totalBalanceCents={totalBalanceCents}
+        totalDepositsCents={totalDepositsCents}
+        totalWithdrawalsCents={totalWithdrawalsCents}
+        dateFilter={dateFilter}
+        advancedFilter={advancedFilter}
+        onApplyAdvancedFilter={setAdvancedFilter}
+        onResetAdvancedFilter={() => setAdvancedFilter(defaultAdvancedFilter)}
       />
     </div>
   )

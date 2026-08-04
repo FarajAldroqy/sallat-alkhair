@@ -6,7 +6,9 @@ import { MetricCards } from '@/components/dashboard/MetricCards'
 import { OverviewChart } from '@/components/dashboard/OverviewChart'
 import { TransactionsTable } from '@/components/dashboard/TransactionsTable'
 import { TreasuryView } from '@/components/dashboard/TreasuryView'
-import type { Stats, DateFilter } from '@/types'
+import { ArchiveDrawer, EntityBalance } from '@/components/archive/ArchiveDrawer'
+import { TrashDrawer } from '@/components/trash/TrashDrawer'
+import type { Stats, DateFilter, Transaction } from '@/types'
 import { filterTransactionsByDate } from '@/lib/utils'
 import {
   BarChart2, Users, Settings, Database, FileText, Sparkles,
@@ -51,6 +53,16 @@ export default function App() {
   const [search, setSearch] = useState('')
   const [dateFilter, setDateFilter] = useState<DateFilter>({ mode: 'NONE' })
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+
+  // Archive Drawer & Rows State
+  const [isArchiveOpen, setIsArchiveOpen] = useState(false)
+  const [archivedDashboardRows, setArchivedDashboardRows] = useState<Transaction[]>([])
+  const [archivedTreasuryRows, setArchivedTreasuryRows] = useState<EntityBalance[]>([])
+
+  // Trash Drawer & Rows State (Recycle Bin)
+  const [isTrashOpen, setIsTrashOpen] = useState(false)
+  const [deletedDashboardRows, setDeletedDashboardRows] = useState<Transaction[]>([])
+  const [deletedTreasuryRows, setDeletedTreasuryRows] = useState<EntityBalance[]>([])
 
   const handleToggleSidebar = () => {
     setIsSidebarOpen((prev) => !prev)
@@ -103,6 +115,56 @@ export default function App() {
     fetchStats()
   }, [fetchStats])
 
+  // --- Archive Handlers ---
+  const handleRestoreDashboardRow = async (id: number) => {
+    if (window.electronAPI?.archiveTransaction) {
+      await window.electronAPI.archiveTransaction(id)
+      await fetchStats()
+    }
+    setArchivedDashboardRows((prev) => prev.filter((r) => r.id !== id))
+  }
+
+  const handlePermanentDeleteDashboardRow = async (id: number) => {
+    if (window.electronAPI?.deleteTransaction) {
+      await window.electronAPI.deleteTransaction(id)
+      await fetchStats()
+    }
+    setArchivedDashboardRows((prev) => prev.filter((r) => r.id !== id))
+  }
+
+  const handleRestoreTreasuryEntity = async (name: string) => {
+    setArchivedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
+  }
+
+  const handlePermanentDeleteTreasuryEntity = async (name: string) => {
+    setArchivedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
+  }
+
+  // --- Trash / Soft Delete Handlers ---
+  const handleRestoreDashboardTrashRow = async (id: number) => {
+    setDeletedDashboardRows((prev) => prev.filter((r) => r.id !== id))
+    await fetchStats()
+  }
+
+  const handlePermanentDeleteDashboardTrashRow = async (id: number) => {
+    if (window.electronAPI?.deleteTransaction) {
+      await window.electronAPI.deleteTransaction(id)
+      await fetchStats()
+    }
+    setDeletedDashboardRows((prev) => prev.filter((r) => r.id !== id))
+  }
+
+  const handleRestoreTreasuryTrashEntity = async (name: string) => {
+    setDeletedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
+  }
+
+  const handlePermanentDeleteTreasuryTrashEntity = async (name: string) => {
+    setDeletedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
+  }
+
+  const totalArchivedCount = archivedDashboardRows.length + archivedTreasuryRows.length
+  const totalDeletedCount = deletedDashboardRows.length + deletedTreasuryRows.length
+
   const renderContent = () => {
     switch (activeSection) {
       case 'dashboard':
@@ -121,12 +183,28 @@ export default function App() {
               searchValue={search}
               onStatsRefresh={fetchStats}
               dateFilter={dateFilter}
+              onArchiveRow={(tx) => {
+                setArchivedDashboardRows((prev) => [...prev.filter((r) => r.id !== tx.id), tx])
+              }}
+              onDeleteRow={(tx) => {
+                setDeletedDashboardRows((prev) => [...prev.filter((r) => r.id !== tx.id), tx])
+              }}
             />
           </div>
         )
 
       case 'treasury':
-        return <TreasuryView dateFilter={dateFilter} />
+        return (
+          <TreasuryView
+            dateFilter={dateFilter}
+            onArchiveEntity={(entity) => {
+              setArchivedTreasuryRows((prev) => [...prev.filter((r) => r.name !== entity.name), entity])
+            }}
+            onDeleteEntity={(entity) => {
+              setDeletedTreasuryRows((prev) => [...prev.filter((r) => r.name !== entity.name), entity])
+            }}
+          />
+        )
 
       case 'analytics':
         return <PlaceholderSection icon={BarChart2} title="Analytics" />
@@ -151,7 +229,7 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen w-full bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 select-none transition-colors duration-300">
-      {/* Sidebar with embedded Calendar widget */}
+      {/* Sidebar with embedded Calendar widget & Conditional Archive/Trash buttons */}
       <Sidebar
         activeSection={activeSection}
         onNavigate={setActiveSection}
@@ -159,6 +237,10 @@ export default function App() {
         dateFilter={dateFilter}
         onDateFilterChange={setDateFilter}
         isOpen={isSidebarOpen}
+        archivedCount={totalArchivedCount}
+        onOpenArchive={() => setIsArchiveOpen(true)}
+        deletedCount={totalDeletedCount}
+        onOpenTrash={() => setIsTrashOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -178,6 +260,30 @@ export default function App() {
           {renderContent()}
         </main>
       </div>
+
+      {/* Archive Drawer */}
+      <ArchiveDrawer
+        open={isArchiveOpen}
+        onClose={() => setIsArchiveOpen(false)}
+        archivedDashboardRows={archivedDashboardRows}
+        archivedTreasuryRows={archivedTreasuryRows}
+        onRestoreDashboardRow={handleRestoreDashboardRow}
+        onPermanentDeleteDashboardRow={handlePermanentDeleteDashboardRow}
+        onRestoreTreasuryEntity={handleRestoreTreasuryEntity}
+        onPermanentDeleteTreasuryEntity={handlePermanentDeleteTreasuryEntity}
+      />
+
+      {/* Trash Drawer (Recycle Bin) */}
+      <TrashDrawer
+        open={isTrashOpen}
+        onClose={() => setIsTrashOpen(false)}
+        deletedDashboardRows={deletedDashboardRows}
+        deletedTreasuryRows={deletedTreasuryRows}
+        onRestoreDashboardRow={handleRestoreDashboardTrashRow}
+        onPermanentDeleteDashboardRow={handlePermanentDeleteDashboardTrashRow}
+        onRestoreTreasuryEntity={handleRestoreTreasuryTrashEntity}
+        onPermanentDeleteTreasuryEntity={handlePermanentDeleteTreasuryTrashEntity}
+      />
     </div>
   )
 }

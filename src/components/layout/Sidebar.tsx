@@ -5,6 +5,8 @@ import {
   Mail,
   Building2,
   ChevronDown,
+  Archive,
+  Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { DateFilter } from '@/types'
@@ -29,6 +31,10 @@ interface SidebarProps {
   dateFilter: DateFilter
   onDateFilterChange: (filter: DateFilter) => void
   isOpen?: boolean
+  archivedCount?: number
+  onOpenArchive?: () => void
+  deletedCount?: number
+  onOpenTrash?: () => void
 }
 
 export function Sidebar({
@@ -38,7 +44,14 @@ export function Sidebar({
   dateFilter,
   onDateFilterChange,
   isOpen = true,
+  archivedCount = 0,
+  onOpenArchive,
+  deletedCount = 0,
+  onOpenTrash,
 }: SidebarProps) {
+  const hasArchivedItems = archivedCount > 0
+  const hasDeletedItems = deletedCount > 0
+
   return (
     <aside
       className={cn(
@@ -75,7 +88,7 @@ export function Sidebar({
         </button>
       </div>
 
-      {/* 2. Main Navigation: Dashboard & Treasury + 3. Calendar Widget directly below Treasury */}
+      {/* 2. Main Navigation: Dashboard, Treasury, Archive, & Trash */}
       <div className="flex-1 px-3 space-y-1 overflow-y-auto whitespace-nowrap">
         {mainNavItems.map((item) => {
           const Icon = item.icon
@@ -98,7 +111,41 @@ export function Sidebar({
           )
         })}
 
-        {/* 4. Calendar Widget & Filter Reset Button positioned directly under Treasury */}
+        {/* CONDITIONAL ARCHIVE MENU ITEM (ONLY WHEN hasArchivedItems IS TRUE) */}
+        {hasArchivedItems && (
+          <button
+            onClick={onOpenArchive}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/60 bg-sky-50/40 dark:bg-sky-950/20 border border-sky-200/60 dark:border-sky-900/40"
+          >
+            <Archive className="w-4 h-4 text-sky-500 shrink-0" />
+            <span className="flex-1 text-left font-semibold">Archive</span>
+            <span className="flex items-center gap-1.5 text-[11px] font-arabic font-bold">
+              <span>الأرشيف</span>
+              <span className="px-1.5 py-0.2 bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 rounded-full text-[10px] ar-num">
+                {archivedCount}
+              </span>
+            </span>
+          </button>
+        )}
+
+        {/* CONDITIONAL TRASH / RECYCLE BIN MENU ITEM (ONLY WHEN hasDeletedItems IS TRUE) */}
+        {hasDeletedItems && (
+          <button
+            onClick={onOpenTrash}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 bg-rose-50/40 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-900/40"
+          >
+            <Trash2 className="w-4 h-4 text-rose-500 shrink-0" />
+            <span className="flex-1 text-left font-semibold">Recycle Bin</span>
+            <span className="flex items-center gap-1.5 text-[11px] font-arabic font-bold">
+              <span>سلة المهملات</span>
+              <span className="px-1.5 py-0.2 bg-rose-100 dark:bg-rose-900 text-rose-700 dark:text-rose-300 rounded-full text-[10px] ar-num">
+                {deletedCount}
+              </span>
+            </span>
+          </button>
+        )}
+
+        {/* 3. Calendar Widget directly below menu items */}
         <SidebarCalendar dateFilter={dateFilter} onDateFilterChange={onDateFilterChange} />
       </div>
     </aside>

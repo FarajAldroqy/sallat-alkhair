@@ -30,9 +30,11 @@ interface TransactionsTableProps {
   searchValue: string
   onStatsRefresh: () => void
   dateFilter?: DateFilter
+  onArchiveRow?: (tx: Transaction) => void
+  onDeleteRow?: (tx: Transaction) => void
 }
 
-export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter }: TransactionsTableProps) {
+export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onArchiveRow, onDeleteRow }: TransactionsTableProps) {
   const [data, setData] = useState<Transaction[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -169,6 +171,11 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter }: T
     setPendingDeleteId(null)
     setDeletingId(targetId)
 
+    const targetTx = data.find((t) => t.id === targetId)
+    if (targetTx) {
+      onDeleteRow?.(targetTx)
+    }
+
     setTimeout(async () => {
       setData((prev) => prev.filter((item) => item.id !== targetId))
       const newTotal = Math.max(0, total - 1)
@@ -193,6 +200,11 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter }: T
     e?.stopPropagation()
     setSwipedRowId(null)
     setArchivingId(id)
+
+    const targetTx = data.find((t) => t.id === id)
+    if (targetTx) {
+      onArchiveRow?.({ ...targetTx, is_archived: 1 })
+    }
 
     setTimeout(async () => {
       setData((prev) => prev.filter((item) => item.id !== id))

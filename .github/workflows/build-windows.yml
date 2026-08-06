@@ -1,36 +1,43 @@
-name: Build Windows Release
+name: Build Windows Application
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
-  build:
+  build-windows:
+    name: Build Windows Executables
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'npm'
 
-      - name: Install Dependencies & Fix Missing Modules
-        run: |
-          npm install --legacy-peer-deps --ignore-scripts
-          npm install react-is --legacy-peer-deps
+      - name: Install dependencies
+        run: npm install --ignore-scripts
 
-      - name: Build Vite Web Production
-        run: npx vite build
+      - name: Build web application with Vite
+        run: npm run build:web
 
-      - name: Build Windows Executable
-        run: npx electron-builder --win
+      - name: Package Windows Electron Application
+        run: npx electron-builder --win --x64
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Windows Artifact
+      - name: Upload Windows Executable Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Sallat-Alkhair-Windows-Build
-          path: release/
+          name: Salla-Finance-Windows-x64
+          path: |
+            release/**/*.exe
+            release/**/*.blockmap
+          if-no-files-found: error

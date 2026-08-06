@@ -18,8 +18,10 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install Dependencies
-        run: npm install --legacy-peer-deps --ignore-scripts
+      - name: Install Dependencies & Fix Missing Modules
+        run: |
+          npm install --legacy-peer-deps --ignore-scripts
+          npm install react-is --legacy-peer-deps
 
       - name: Build Vite Web Production
         run: npx vite build

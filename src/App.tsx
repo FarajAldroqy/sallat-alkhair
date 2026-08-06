@@ -8,8 +8,14 @@ import { TransactionsTable } from '@/components/dashboard/TransactionsTable'
 import { TreasuryView } from '@/components/dashboard/TreasuryView'
 import { ArchiveDrawer, EntityBalance } from '@/components/archive/ArchiveDrawer'
 import { TrashDrawer } from '@/components/trash/TrashDrawer'
+import { SettingsModal } from '@/components/settings/SettingsModal'
+import { LoginPage } from '@/components/auth/LoginPage'
+import { WelcomeSplash } from '@/components/auth/WelcomeSplash'
+import { UserAuditModal } from '@/components/dashboard/UserAuditModal'
+import { NotesModal } from '@/components/dashboard/NotesModal'
 import type { Stats, DateFilter, Transaction } from '@/types'
 import { filterTransactionsByDate } from '@/lib/utils'
+import { initAutoBackupListener } from '@/lib/backupManager'
 import {
   BarChart2, Users, Settings, Database, FileText, Sparkles,
   HelpCircle, Search, LayoutDashboard,
@@ -47,6 +53,14 @@ function PlaceholderSection({ icon: Icon, title }: { icon: React.ComponentType<{
 }
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return sessionStorage.getItem('is_logged_in') === 'true'
+  })
+
+  useEffect(() => {
+    initAutoBackupListener()
+  }, [])
+
   const [activeSection, setActiveSection] = useState('dashboard')
   const [stats, setStats] = useState<Stats | null>(null)
   const [statsLoading, setStatsLoading] = useState(true)
@@ -64,6 +78,25 @@ export default function App() {
   const [deletedDashboardRows, setDeletedDashboardRows] = useState<Transaction[]>([])
   const [deletedTreasuryRows, setDeletedTreasuryRows] = useState<EntityBalance[]>([])
 
+  // Settings Modal State
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+
+  // User Audit Modal State (1-Week Non-Repudiation Log)
+  const [isUserAuditOpen, setIsUserAuditOpen] = useState(false)
+
+  // Compact Notes Modal State
+  const [isNotesOpen, setIsNotesOpen] = useState(false)
+
+  // Animated Welcome Splash State
+  const [showSplash, setShowSplash] = useState(false)
+  const [splashDisplayName, setSplashDisplayName] = useState('')
+
+  const handleLoginSuccess = () => {
+    const name = sessionStorage.getItem('current_display_name') || sessionStorage.getItem('current_username') || 'admin'
+    setSplashDisplayName(name)
+    setShowSplash(true)
+  }
+
   const handleToggleSidebar = () => {
     setIsSidebarOpen((prev) => !prev)
   }
@@ -72,38 +105,51 @@ export default function App() {
     if (!window.electronAPI) return
     setStatsLoading(true)
     try {
-      if (dateFilter && dateFilter.mode !== 'NONE') {
-        const txResult = await window.electronAPI.getTransactions({ page: 1, pageSize: 1000 })
-        const filtered = filterTransactionsByDate(txResult.data, dateFilter)
-        let dep = 0
-        let withd = 0
-        const accounts = new Set<string>()
-        let depCount = 0
-        let withdCount = 0
+      const txResult = await window.electronAPI.getTransactions({ page: 1, pageSize: 1000 })
+      const rawTxs = txResult.data || []
+      const filtered = (dateFilter && dateFilter.mode !== 'NONE')
+        ? filterTransactionsByDate(rawTxs, dateFilter)
+        : rawTxs
 
-        filtered.forEach((tx) => {
-          accounts.add(tx.client_name.trim())
-          if (tx.type === 'DEPOSIT') {
-            dep += tx.amount_cents
-            depCount += 1
-          } else {
-            withd += tx.amount_cents
-            withdCount += 1
-          }
-        })
+      let dep = 0
+      let withd = 0
+      const accounts = new Set<string>()
+      let depCount = 0
+      let withdCount = 0
+      let cashDepCount = 0
+      let bankDepCount = 0
+      let cashWithdCount = 0
+      let bankWithdCount = 0
 
-        setStats({
-          total_balance_cents: dep - withd,
-          total_deposits_cents: dep,
-          total_withdrawals_cents: withd,
-          active_accounts: accounts.size,
-          deposit_count: depCount,
-          withdrawal_count: withdCount,
-        })
-      } else {
-        const s = await window.electronAPI.getStats()
-        setStats(s)
-      }
+      filtered.forEach((tx) => {
+        if (tx.client_name) accounts.add(tx.client_name.trim())
+        const isCash = !tx.payment_method || tx.payment_method === 'نقداً'
+
+        if (tx.type === 'DEPOSIT') {
+          dep += tx.amount_cents
+          depCount += 1
+          if (isCash) cashDepCount += 1
+          else bankDepCount += 1
+        } else {
+          withd += tx.amount_cents
+          withdCount += 1
+          if (isCash) cashWithdCount += 1
+          else bankWithdCount += 1
+        }
+      })
+
+      setStats({
+        total_balance_cents: dep - withd,
+        total_deposits_cents: dep,
+        total_withdrawals_cents: withd,
+        active_accounts: accounts.size,
+        deposit_count: depCount,
+        withdrawal_count: withdCount,
+        cash_deposit_count: cashDepCount,
+        bank_deposit_count: bankDepCount,
+        cash_withdrawal_count: cashWithdCount,
+        bank_withdrawal_count: bankWithdCount,
+      })
     } catch (err) {
       console.error('Failed to fetch stats', err)
     } finally {
@@ -227,13 +273,29 @@ export default function App() {
     }
   }
 
+  if (showSplash) {
+    return (
+      <WelcomeSplash
+        displayName={splashDisplayName}
+        onComplete={() => {
+          setShowSplash(false)
+          setIsAuthenticated(true)
+        }}
+      />
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />
+  }
+
   return (
-    <div className="flex min-h-screen w-full bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 select-none transition-colors duration-300">
+    <div className="flex h-screen w-screen overflow-hidden bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 select-none transition-colors duration-300">
       {/* Sidebar with embedded Calendar widget & Conditional Archive/Trash buttons */}
       <Sidebar
         activeSection={activeSection}
         onNavigate={setActiveSection}
-        onQuickCreate={() => setActiveSection('dashboard')}
+        onOpenUserAudit={() => setIsUserAuditOpen(true)}
         dateFilter={dateFilter}
         onDateFilterChange={setDateFilter}
         isOpen={isSidebarOpen}
@@ -241,10 +303,12 @@ export default function App() {
         onOpenArchive={() => setIsArchiveOpen(true)}
         deletedCount={totalDeletedCount}
         onOpenTrash={() => setIsTrashOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenNotes={() => setIsNotesOpen(true)}
       />
 
       {/* Main Content Area */}
-      <div className="flex flex-col flex-1 min-w-0 bg-white dark:bg-zinc-950">
+      <div className="flex flex-col flex-1 h-full min-w-0 overflow-hidden bg-white dark:bg-zinc-950">
         {/* Top Header with Active Date Filter Badge & Sidebar Toggle */}
         <Header
           searchValue={search}
@@ -256,7 +320,7 @@ export default function App() {
         />
 
         {/* Scrollable Page Content */}
-        <main className="flex-1 overflow-y-auto bg-white dark:bg-zinc-950">
+        <main className="flex-1 h-full overflow-y-auto bg-white dark:bg-zinc-950">
           {renderContent()}
         </main>
       </div>
@@ -283,6 +347,25 @@ export default function App() {
         onPermanentDeleteDashboardRow={handlePermanentDeleteDashboardTrashRow}
         onRestoreTreasuryEntity={handleRestoreTreasuryTrashEntity}
         onPermanentDeleteTreasuryEntity={handlePermanentDeleteTreasuryTrashEntity}
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        open={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onLogout={() => setIsAuthenticated(false)}
+      />
+
+      {/* User 1-Week Non-Repudiation Audit Log Modal */}
+      <UserAuditModal
+        open={isUserAuditOpen}
+        onClose={() => setIsUserAuditOpen(false)}
+      />
+
+      {/* Compact Notes Modal */}
+      <NotesModal
+        open={isNotesOpen}
+        onClose={() => setIsNotesOpen(false)}
       />
     </div>
   )

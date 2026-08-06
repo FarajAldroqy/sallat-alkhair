@@ -1,0 +1,89 @@
+import { useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { ShoppingBag, Sparkles } from 'lucide-react'
+import { playLoginSuccessSound } from '@/lib/soundEffects'
+
+interface WelcomeSplashProps {
+  displayName: string
+  onComplete: () => void
+}
+
+export function WelcomeSplash({ displayName, onComplete }: WelcomeSplashProps) {
+  useEffect(() => {
+    playLoginSuccessSound()
+    const timer = setTimeout(() => {
+      onComplete()
+    }, 2000)
+
+    return () => clearTimeout(timer)
+  }, [onComplete])
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-500 dir-rtl font-arabic select-none overflow-hidden">
+      {/* Background Centered Gradient Glow */}
+      <div className="bg-emerald-500/10 dark:bg-emerald-500/20 blur-3xl w-72 h-72 rounded-full absolute pointer-events-none" />
+
+      {/* Main Animated Content Box */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.85, y: 15 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="relative z-10 flex flex-col items-center text-center p-6 space-y-5"
+      >
+        {/* Emblem Container */}
+        <div className="relative">
+          <div className="w-20 h-20 rounded-3xl bg-emerald-600 dark:bg-emerald-500 text-white flex items-center justify-center shadow-xl shadow-emerald-500/20 border border-emerald-400/30">
+            <ShoppingBag className="w-10 h-10" />
+          </div>
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.3, type: 'spring', stiffness: 300 }}
+            className="absolute -top-1.5 -right-1.5 w-7 h-7 bg-amber-400 dark:bg-amber-300 text-zinc-900 rounded-full flex items-center justify-center shadow-md border-2 border-white dark:border-zinc-950"
+          >
+            <Sparkles className="w-4 h-4" />
+          </motion.div>
+        </div>
+
+        {/* Dynamic Welcome Text */}
+        <div className="space-y-1">
+          <motion.h1
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.5 }}
+            className="text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white"
+          >
+            مرحباً {displayName}
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35, duration: 0.5 }}
+            className="text-xs text-zinc-500 dark:text-zinc-400 font-medium"
+          >
+            جاري تجهيز منظومة سلة الخير...
+          </motion.p>
+        </div>
+
+        {/* Pulsing Loading Bar */}
+        <motion.div
+          initial={{ opacity: 0, width: 0 }}
+          animate={{ opacity: 1, width: 192 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+          className="h-1.5 w-48 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden relative mt-2"
+        >
+          <motion.div
+            initial={{ x: '-100%' }}
+            animate={{ x: '100%' }}
+            transition={{
+              repeat: Infinity,
+              duration: 1.2,
+              ease: 'easeInOut',
+            }}
+            className="h-full w-full bg-emerald-500 rounded-full"
+          />
+        </motion.div>
+      </motion.div>
+    </div>
+  )
+}

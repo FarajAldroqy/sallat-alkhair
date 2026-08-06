@@ -178,6 +178,15 @@ function registerIpcHandlers() {
     return { success: true, is_archived: newStatus }
   })
 
+  // POST /update-entity-name – rename entity client_name across all transactions
+  ipcMain.handle('db:update-entity-name', (_event, params: { oldName: string; newName: string }) => {
+    if (!params.oldName || !params.newName) return { success: false, message: 'بيانات غير مكتملة' }
+    if (params.oldName.trim() === 'سلة الخير') return { success: false, message: 'لا يمكن تعديل اسم جهة سلة الخير' }
+    const stmt = db.prepare('UPDATE transactions SET client_name = ? WHERE client_name = ?')
+    const res = stmt.run(params.newName.trim(), params.oldName.trim())
+    return { success: true, updatedCount: res.changes }
+  })
+
   // GET /stats – aggregated balances
   ipcMain.handle('db:get-stats', () => {
     const deposits = db.prepare(

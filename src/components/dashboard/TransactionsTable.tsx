@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
-  Eye, Printer, SlidersHorizontal, Plus,
+  Eye, Printer, Plus, CheckSquare,
   ChevronLeft, ChevronRight, Pin, Trash2, Archive,
 } from 'lucide-react'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
@@ -14,6 +14,14 @@ import type { Transaction, TransactionCreate, DateFilter } from '@/types'
 import { TransactionModal } from './TransactionModal'
 import { ReceiptModal } from './ReceiptModal'
 import { DeleteConfirmModal } from './DeleteConfirmModal'
+import { PrintReceipt } from './PrintReceipt'
+import { TransactionsReportModal } from './TransactionsReportModal'
+import { usePermission } from '@/hooks/usePermission'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
+import { logUserAction } from '@/lib/auditLogger'
+import {
+  playDepositSound, playWithdrawalSound, playDeleteSound, playClickSound
+} from '@/lib/soundEffects'
 
 const PAGE_SIZE = 8
 
@@ -35,6 +43,10 @@ interface TransactionsTableProps {
 }
 
 export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onArchiveRow, onDeleteRow }: TransactionsTableProps) {
+  const { hasPermission } = usePermission()
+  const canEditData = hasPermission('edit_data')
+  const canDeleteItems = hasPermission('delete_items')
+
   const [data, setData] = useState<Transaction[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -166,6 +178,12 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
 
   // OPTIMISTIC UI: Execute Delete with Red exit animation & dynamic page backfilling
   const handleConfirmDelete = () => {
+    if (!canDeleteItems) {
+      alert('عفواً، لا تملك صلاحية حذف العناصر والعمليات')
+      setPendingDeleteId(null)
+      return
+    }
+
     if (pendingDeleteId === null) return
     const targetId = pendingDeleteId
     setPendingDeleteId(null)
@@ -173,6 +191,13 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
 
     const targetTx = data.find((t) => t.id === targetId)
     if (targetTx) {
+      playDeleteSound()
+      logUserAction(
+        'DELETE',
+        'سلة المهملات والأرشيف',
+        'نقل معاملة لسلة المهملات',
+        `جهة: ${targetTx.client_name} | قيمة: ${formatCurrency(targetTx.amount_cents)}`
+      )
       onDeleteRow?.(targetTx)
     }
 
@@ -203,6 +228,13 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
 
     const targetTx = data.find((t) => t.id === id)
     if (targetTx) {
+      playDeleteSound()
+      logUserAction(
+        'ARCHIVE',
+        'سلة المهملات والأرشيف',
+        'أرشفة معاملة مالية',
+        `جهة: ${targetTx.client_name} | قيمة: ${formatCurrency(targetTx.amount_cents)}`
+      )
       onArchiveRow?.({ ...targetTx, is_archived: 1 })
     }
 
@@ -227,6 +259,15 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
 
   // NEW TRANSACTION CREATION: Resets to Page 1 and triggers ultra-fast 140ms camera strobe flash
   const handleCreate = async (payload: TransactionCreate) => {
+    if (payload.type === 'DEPOSIT') playDepositSound()
+    else if (payload.type === 'WITHDRAWAL') playWithdrawalSound()
+
+    logUserAction(
+      payload.type,
+      'مالية',
+      payload.type === 'DEPOSIT' ? 'تسجيل عملية إيداع جديدة' : 'تسجيل عملية سحب جديدة',
+      `جهة: ${payload.client_name} | قيمة: ${formatCurrency(payload.amount_cents)} | طريقة الدفع: ${payload.payment_method}`
+    )
     if (window.electronAPI?.createTransaction) {
       const newTx = await window.electronAPI.createTransaction(payload)
       setPage(1)
@@ -243,17 +284,109 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
   const openDeposit = () => { setModalMode('DEPOSIT'); setModalOpen(true) }
   const openWithdrawal = () => { setModalMode('WITHDRAWAL'); setModalOpen(true) }
 
+  // Global Keyboard Shortcuts (Ctrl+ / Cmd+ for Deposit, Ctrl- / Cmd- for Withdrawal)
+  useKeyboardShortcuts({
+    onOpenDeposit: openDeposit,
+    onOpenWithdrawal: openWithdrawal,
+  })
+
+  // Custom Report Modal State
+  const [reportModalOpen, setReportModalOpen] = useState(false)
+
+  // Direct printable receipt state (for printer icon button direct print without preview modal)
+  const [directPrintReceipt, setDirectPrintReceipt] = useState<Transaction | null>(null)
+
   const handleViewReceipt = (tx: Transaction) => {
     setSelectedReceipt(tx)
     setReceiptOpen(true)
   }
 
   const handlePrintReceipt = (tx: Transaction) => {
-    setSelectedReceipt(tx)
-    setReceiptOpen(true)
+    logUserAction(
+      'PRINT_RECEIPT',
+      'تقارير وطباعة',
+      'طباعة إيصال استلام/صرف',
+      `إيصال جهة: ${tx.client_name} | مبلغ: ${formatCurrency(tx.amount_cents)}`
+    )
+    setDirectPrintReceipt(tx)
     setTimeout(() => {
       window.print()
-    }, 300)
+    }, 50)
+  }
+
+  // Multi-Row Selection & Bulk Actions State
+  const [isSelectionMode, setIsSelectionMode] = useState<boolean>(false)
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
+
+  const handleToggleRowSelect = (id: number) => {
+    playClickSound()
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    )
+  }
+
+  const handleToggleSelectAll = () => {
+    playClickSound()
+    const visibleIds = data.map((t) => t.id)
+    const isAllVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id))
+    if (isAllVisibleSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !visibleIds.includes(id)))
+    } else {
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...visibleIds])))
+    }
+  }
+
+  // Available Entities list for TransactionModal dropdown (combining custom Treasury entities + transactions + system entities)
+  const availableEntities = useMemo(() => {
+    let custom: string[] = []
+    try {
+      const saved = localStorage.getItem('salla_treasury_custom_entities')
+      if (saved) custom = JSON.parse(saved)
+    } catch {
+      custom = []
+    }
+
+    const txEntities = data.map((t) => t.client_name?.trim()).filter(Boolean) as string[]
+    const combined = Array.from(new Set([...custom, ...txEntities, 'سلة الخير'])).filter(Boolean)
+    return combined.sort((a, b) => a.localeCompare(b, 'ar'))
+  }, [data, modalOpen])
+
+  const handleBulkArchive = async () => {
+    if (selectedIds.length === 0) return
+    const idsToArchive = [...selectedIds]
+    setSelectedIds([])
+
+    for (const id of idsToArchive) {
+      const targetTx = data.find((t) => t.id === id)
+      if (targetTx) onDeleteRow?.(targetTx)
+      if (window.electronAPI?.archiveTransaction) {
+        await window.electronAPI.archiveTransaction(id)
+      }
+    }
+    onStatsRefresh()
+    fetchData()
+  }
+
+  const handleBulkDelete = async () => {
+    if (!canDeleteItems) {
+      alert('عفواً، لا تملك صلاحية حذف العناصر والعمليات')
+      return
+    }
+    if (selectedIds.length === 0) return
+    if (!confirm(`هل أنت تأكد من حذف ${selectedIds.length} عنصر بصورة نهائية؟`)) return
+
+    const idsToDelete = [...selectedIds]
+    setSelectedIds([])
+
+    for (const id of idsToDelete) {
+      const targetTx = data.find((t) => t.id === id)
+      if (targetTx) onDeleteRow?.(targetTx)
+      if (window.electronAPI?.archiveTransaction) {
+        await window.electronAPI.archiveTransaction(id)
+      }
+    }
+    onStatsRefresh()
+    fetchData()
   }
 
   return (
@@ -300,36 +433,97 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
           {/* Left/End action buttons */}
           <div className="flex items-center gap-2">
             <Button
-              id="customize-columns-btn"
+              id="toggle-selection-btn"
+              variant={isSelectionMode ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setIsSelectionMode((prev) => !prev)
+                setSelectedIds([])
+              }}
+              className={`h-8 gap-1.5 text-xs font-arabic font-medium shadow-xs ${
+                isSelectionMode
+                  ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-zinc-900 dark:border-zinc-100'
+                  : 'text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+              }`}
+            >
+              <CheckSquare className="w-3.5 h-3.5" />
+              <span>{isSelectionMode ? 'إلغاء التحديد' : 'تحديد الصفوف'}</span>
+            </Button>
+
+            <Button
+              id="print-report-btn"
               variant="outline"
               size="sm"
-              className="h-8 gap-1.5 text-xs text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 font-arabic font-medium"
+              onClick={() => setReportModalOpen(true)}
+              className="h-8 gap-1.5 text-xs text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 font-arabic font-medium shadow-xs"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-              <span>تخصيص الأعمدة</span>
+              <Printer className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+              <span>{selectedIds.length > 0 ? `طباعة المحدد (${selectedIds.length})` : 'طباعة تقرير'}</span>
             </Button>
 
-            <Button
-              id="add-deposit-btn"
-              size="sm"
-              onClick={openDeposit}
-              className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-arabic font-semibold shadow-sm"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>إيداع جديد</span>
-            </Button>
+            {canEditData && (
+              <>
+                <Button
+                  id="add-deposit-btn"
+                  size="sm"
+                  onClick={openDeposit}
+                  className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-arabic font-semibold shadow-sm"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>إيداع جديد</span>
+                </Button>
 
-            <Button
-              id="add-withdrawal-btn"
-              size="sm"
-              onClick={openWithdrawal}
-              className="h-8 gap-1.5 text-xs bg-rose-600 hover:bg-rose-500 text-white font-arabic font-semibold shadow-sm"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>سحب جديد</span>
-            </Button>
+                <Button
+                  id="add-withdrawal-btn"
+                  size="sm"
+                  onClick={openWithdrawal}
+                  className="h-8 gap-1.5 text-xs bg-rose-600 hover:bg-rose-500 text-white font-arabic font-semibold shadow-sm"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>سحب جديد</span>
+                </Button>
+              </>
+            )}
           </div>
         </div>
+
+        {/* Floating Bulk Action Bar */}
+        {selectedIds.length > 0 && (
+          <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border border-zinc-800 dark:border-zinc-200 shadow-lg animate-in fade-in slide-in-from-top-2 duration-200 font-arabic">
+            <div className="flex items-center gap-2 text-xs font-bold">
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 dark:text-emerald-700 border border-emerald-500/40 ar-num">
+                تم تحديد {selectedIds.length} عنصر
+              </span>
+              <span className="text-zinc-400 dark:text-zinc-600 font-medium hidden sm:inline">
+                يمكنك تنفيذ إجراء جماعي على المعاملات المحددة
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                type="button"
+                onClick={handleBulkArchive}
+                className="h-7 px-3 gap-1.5 text-xs bg-zinc-800 hover:bg-zinc-700 dark:bg-zinc-200 dark:hover:bg-zinc-300 text-zinc-100 dark:text-zinc-900 font-bold rounded-lg transition-all"
+              >
+                <Archive className="w-3.5 h-3.5 text-amber-400 dark:text-amber-600" />
+                <span>أرشفة المحدد</span>
+              </Button>
+
+              {canDeleteItems && (
+                <Button
+                  size="sm"
+                  type="button"
+                  onClick={handleBulkDelete}
+                  className="h-7 px-3 gap-1.5 text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg transition-all"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>حذف المحدد</span>
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Table Container */}
         <Card className="subtle-card rounded-xl p-0 shadow-none border border-zinc-200/80 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900/90 transition-colors">
@@ -338,6 +532,17 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
               <Table dir="rtl">
                 <TableHeader>
                   <TableRow className="bg-zinc-50/80 dark:bg-zinc-800/80 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/80 border-b border-zinc-200/80 dark:border-zinc-800">
+                    {isSelectionMode && (
+                      <TableHead className="w-12 text-center py-3 font-arabic">
+                        <input
+                          type="checkbox"
+                          checked={data.length > 0 && data.every((t) => selectedIds.includes(t.id))}
+                          onChange={handleToggleSelectAll}
+                          className="w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          title="تحديد الكل"
+                        />
+                      </TableHead>
+                    )}
                     <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-right py-3 font-arabic">
                       اسم الجهة
                     </TableHead>
@@ -363,14 +568,14 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                   {loading ? (
                     Array.from({ length: PAGE_SIZE }).map((_, i) => (
                       <TableRow key={i} className="border-b border-zinc-200/40 dark:border-zinc-800/40">
-                        <TableCell colSpan={6} className="py-3 px-4">
+                        <TableCell colSpan={isSelectionMode ? 7 : 6} className="py-3 px-4">
                           <div className="h-4 w-full bg-zinc-200/50 dark:bg-zinc-800/50 rounded animate-pulse" />
                         </TableCell>
                       </TableRow>
                     ))
                   ) : data.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-12 text-xs text-zinc-400 dark:text-zinc-500 font-arabic font-medium">
+                      <TableCell colSpan={isSelectionMode ? 7 : 6} className="text-center py-12 text-xs text-zinc-400 dark:text-zinc-500 font-arabic font-medium">
                         لا توجد معاملات مسجلة
                       </TableCell>
                     </TableRow>
@@ -413,7 +618,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                   : 'hover:bg-zinc-50/80 dark:hover:bg-zinc-800/60 bg-white dark:bg-zinc-900'
                               }`}
                             >
-                              <TableCell colSpan={6} className="p-0 border-none relative">
+                              <TableCell colSpan={isSelectionMode ? 7 : 6} className="p-0 border-none relative">
                                 {/* Underlying Revealed Action Bar */}
                                 <AnimatePresence>
                                   {isSwiped && !isDeleting && !isArchiving && (
@@ -445,13 +650,15 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                       </button>
 
                                       {/* Delete Button */}
-                                      <button
-                                        onClick={(e) => handleOpenDeleteConfirm(tx.id, e)}
-                                        title="حذف المعاملة"
-                                        className="w-12 h-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center transition-colors active:opacity-90"
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </button>
+                                      {canDeleteItems && (
+                                        <button
+                                          onClick={(e) => handleOpenDeleteConfirm(tx.id, e)}
+                                          title="حذف المعاملة"
+                                          className="w-12 h-full bg-rose-500 hover:bg-rose-600 text-white flex items-center justify-center transition-colors active:opacity-90"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      )}
                                     </motion.div>
                                   )}
                                 </AnimatePresence>
@@ -459,7 +666,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                 {/* Sliding Row Content Layer */}
                                 <motion.div
                                   animate={{
-                                    x: isDeleting || isArchiving ? -250 : isSwiped ? 144 : 0,
+                                    x: isDeleting || isArchiving ? -250 : isSwiped ? (canDeleteItems ? 144 : 96) : 0,
                                     opacity: isDeleting || isArchiving ? 0 : 1,
                                   }}
                                   transition={{
@@ -467,6 +674,21 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                   }}
                                   className="flex items-center w-full px-4 py-3 bg-inherit"
                                 >
+                                  {/* Selection Checkbox */}
+                                  {isSelectionMode && (
+                                    <div className="w-8 text-center flex items-center justify-center shrink-0 ml-2">
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedIds.includes(tx.id)}
+                                        onChange={(e) => {
+                                          e.stopPropagation()
+                                          handleToggleRowSelect(tx.id)
+                                        }}
+                                        className="w-4 h-4 rounded border-zinc-300 dark:border-zinc-700 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                      />
+                                    </div>
+                                  )}
+
                                   {/* 1. اسم الجهة */}
                                   <div className="flex-1 min-w-0 text-right font-arabic flex items-center gap-1.5">
                                     {isPinned && (
@@ -527,13 +749,15 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                       <Eye className="w-4 h-4" />
                                     </button>
 
-                                    <button
-                                      onClick={(e) => { e.stopPropagation(); handlePrintReceipt(tx) }}
-                                      className="p-1.5 rounded-md transition-colors border border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-200 dark:hover:border-zinc-700"
-                                      title="طباعة الإيصال"
-                                    >
-                                      <Printer className="w-4 h-4" />
-                                    </button>
+                                    {hasPermission('export_reports') && (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handlePrintReceipt(tx) }}
+                                        className="p-1.5 rounded-md transition-colors border border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-200 dark:hover:border-zinc-700"
+                                        title="طباعة الإيصال"
+                                      >
+                                        <Printer className="w-4 h-4" />
+                                      </button>
+                                    )}
                                   </div>
                                 </motion.div>
                               </TableCell>
@@ -551,7 +775,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                         key={`empty-slot-${i}`}
                         className="h-[53px] bg-zinc-50/40 dark:bg-zinc-900/30 border-b border-zinc-100/70 dark:border-zinc-800/50 pointer-events-none select-none"
                       >
-                        <TableCell colSpan={6} className="p-0 border-none">
+                        <TableCell colSpan={isSelectionMode ? 7 : 6} className="p-0 border-none">
                           <div className="flex items-center w-full px-4 py-3 text-transparent font-arabic text-xs">
                             &nbsp;
                           </div>
@@ -657,7 +881,11 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
         mode={modalMode}
         onClose={() => setModalOpen(false)}
         onSubmit={handleCreate}
+        entities={availableEntities}
       />
+
+      {/* Direct print element (prints immediately without modal) */}
+      <PrintReceipt transaction={directPrintReceipt} isPreview={false} />
 
       {/* Receipt viewing modal */}
       <ReceiptModal
@@ -671,6 +899,15 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
         open={pendingDeleteId !== null}
         onClose={() => setPendingDeleteId(null)}
         onConfirm={handleConfirmDelete}
+      />
+
+      {/* Interactive Report Customization & Live Preview Modal */}
+      <TransactionsReportModal
+        open={reportModalOpen}
+        onClose={() => setReportModalOpen(false)}
+        transactions={selectedIds.length > 0 ? data.filter((t) => selectedIds.includes(t.id)) : data}
+        stats={null}
+        dateFilter={dateFilter}
       />
     </>
   )

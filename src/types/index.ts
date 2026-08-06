@@ -6,6 +6,7 @@ export interface Transaction {
   type: 'DEPOSIT' | 'WITHDRAWAL'
   amount_cents: number
   payment_method?: PaymentMethod | string
+  notes?: string
   status?: 'COMPLETED' | 'PENDING' | 'FAILED' | 'PROCESSING'
   is_pinned?: number
   is_archived?: number
@@ -27,6 +28,10 @@ export interface Stats {
   active_accounts: number
   deposit_count: number
   withdrawal_count: number
+  cash_deposit_count?: number
+  bank_deposit_count?: number
+  cash_withdrawal_count?: number
+  bank_withdrawal_count?: number
 }
 
 export interface PaginatedTransactions {
@@ -58,8 +63,18 @@ export interface GetChartDataParams {
 
 export type DateFilter =
   | { mode: 'NONE' }
+  | { mode: 'YEAR'; year: number }
   | { mode: 'MONTH'; year: number; month: number } // month index 0-11
   | { mode: 'DAY'; date: Date }
   | { mode: 'RANGE'; from: Date; to: Date }
+
+export interface UserAccount {
+  id: string
+  username: string
+  displayName?: string
+  password?: string
+  permissions: string[]
+  recoveryKeys: string[]
+}
 
 

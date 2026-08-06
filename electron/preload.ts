@@ -31,6 +31,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   archiveTransaction: (id: number): Promise<{ success: boolean; is_archived: number }> =>
     ipcRenderer.invoke('db:archive-transaction', id),
+
+  updateEntityName: (params: { oldName: string; newName: string }): Promise<{ success: boolean; updatedCount?: number; message?: string }> =>
+    ipcRenderer.invoke('db:update-entity-name', params),
 })
 
 // Keep legacy ipcRenderer for backward compatibility

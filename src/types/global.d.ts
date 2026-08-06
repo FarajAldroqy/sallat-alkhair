@@ -10,6 +10,7 @@ declare global {
       togglePin: (id: number) => Promise<{ success: boolean; is_pinned: number }>
       deleteTransaction: (id: number) => Promise<{ success: boolean }>
       archiveTransaction: (id: number) => Promise<{ success: boolean; is_archived: number }>
+      updateEntityName: (p: { oldName: string; newName: string }) => Promise<{ success: boolean; updatedCount?: number; message?: string }>
     }
   }
 }

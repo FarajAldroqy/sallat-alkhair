@@ -136,6 +136,13 @@ function registerIpcHandlers() {
     db.prepare("UPDATE transactions SET is_archived = ? WHERE id = ?").run(newStatus, id);
     return { success: true, is_archived: newStatus };
   });
+  ipcMain.handle("db:update-entity-name", (_event, params) => {
+    if (!params.oldName || !params.newName) return { success: false, message: "بيانات غير مكتملة" };
+    if (params.oldName.trim() === "سلة الخير") return { success: false, message: "لا يمكن تعديل اسم جهة سلة الخير" };
+    const stmt = db.prepare("UPDATE transactions SET client_name = ? WHERE client_name = ?");
+    const res = stmt.run(params.newName.trim(), params.oldName.trim());
+    return { success: true, updatedCount: res.changes };
+  });
   ipcMain.handle("db:get-stats", () => {
     const deposits = db.prepare(
       `SELECT COALESCE(SUM(amount_cents),0) as total, COUNT(*) as cnt

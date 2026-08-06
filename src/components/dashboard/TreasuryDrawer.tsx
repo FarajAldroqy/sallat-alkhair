@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import {
   X, Plus, FileText, Filter, Printer, Check, RotateCcw,
-  ArrowUpRight, ArrowDownRight, Eye, CheckSquare, Square, Palette, SlidersHorizontal,
+  Eye, CheckSquare, Square, Palette, SlidersHorizontal,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { formatCurrency } from '@/lib/utils'
+import { formatCurrency, getDateFilterText } from '@/lib/utils'
 import type { DateFilter } from '@/types'
+import { usePermission } from '@/hooks/usePermission'
+import { logUserAction } from '@/lib/auditLogger'
 
 export type DrawerMode = 'ADD_ENTITY' | 'PRINT_REPORT' | 'ADVANCED_FILTER' | null
 
@@ -42,7 +44,7 @@ interface EntityBalance {
 interface TreasuryDrawerProps {
   mode: DrawerMode
   onClose: () => void
-  onAddEntitySuccess: (name: string, amountCents: number, type: 'DEPOSIT' | 'WITHDRAWAL', note: string) => Promise<void>
+  onAddEntitySuccess: (name: string) => Promise<void> | void
   entities: EntityBalance[]
   totalBalanceCents: number
   totalDepositsCents: number
@@ -66,31 +68,41 @@ export function TreasuryDrawer({
   onApplyAdvancedFilter,
   onResetAdvancedFilter,
 }: TreasuryDrawerProps) {
+  const { hasPermission } = usePermission()
+  const canManageTreasury = hasPermission('manage_treasury')
+  const canExportReports = hasPermission('export_reports')
+
   // --- Mode 1: Add Entity Form State ---
   const [newEntityName, setNewEntityName] = useState('')
-  const [initialTxType, setInitialTxType] = useState<'DEPOSIT' | 'WITHDRAWAL'>('DEPOSIT')
-  const [initialAmount, setInitialAmount] = useState('')
-  const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newEntityName.trim()) {
+    if (!canManageTreasury) {
+      alert('عذراً، لا تملك صلاحية إدارة الخزينة والسيولة')
+      return
+    }
+    const trimmed = newEntityName.trim()
+    if (!trimmed) {
       setErrorMsg('يرجى إدخال اسم الجهة')
       return
     }
+
+    const alreadyExists = entities.some(
+      (e) => e.name.trim().toLowerCase() === trimmed.toLowerCase()
+    )
+    if (alreadyExists) {
+      setErrorMsg('هذه الجهة مسجلة سابقاً بالمنظومة، لا يمكن تكرار إضافة نفس الجهة')
+      return
+    }
+
     setErrorMsg('')
     setSubmitting(true)
 
     try {
-      const amountNum = parseFloat(initialAmount) || 0
-      const cents = Math.round(amountNum * 100)
-      await onAddEntitySuccess(newEntityName.trim(), cents, initialTxType, note)
-      // Reset form
+      await onAddEntitySuccess(trimmed)
       setNewEntityName('')
-      setInitialAmount('')
-      setNote('')
       onClose()
     } catch (err) {
       console.error(err)
@@ -101,7 +113,6 @@ export function TreasuryDrawer({
   }
 
   // --- Mode 2: Print Report Engine State ---
-  const [reportType, setReportType] = useState<'SUMMARY' | 'DETAILED'>('SUMMARY')
   const [reportTheme, setReportTheme] = useState<'EMERALD' | 'MONO' | 'BLUE'>('EMERALD')
   const [columns, setColumns] = useState({
     name: true,
@@ -116,6 +127,11 @@ export function TreasuryDrawer({
   }
 
   const handlePrint = () => {
+    if (!canExportReports) {
+      alert('عذراً، لا تملك صلاحية تصدير وطباعة التقارير')
+      return
+    }
+    logUserAction('PRINT_REPORT', 'تقارير وطباعة', 'طباعة تقرير مستحقات الخزينة والجهات', `نطاق التقرير: ${getDateFilterText(dateFilter)}`)
     window.print()
   }
 
@@ -137,207 +153,239 @@ export function TreasuryDrawer({
   if (!mode) return null
 
   return (
-    <AnimatePresence>
-      {mode && (
-        <div className="fixed inset-0 z-50 flex justify-end font-arabic select-none">
-          {/* Backdrop Overlay */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
-          />
+    <>
+      {/* -------------------- PRINT MEDIA DOM CONTAINER (OUTSIDE DRAWER OVERLAY) -------------------- */}
+      {mode === 'PRINT_REPORT' && (
+        <div id="printable-treasury-report" className="hidden print:block font-arabic select-none" dir="rtl">
+          <style>{`
+            @media print {
+              * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              html, body {
+                background: white !important;
+                color: black !important;
+                overflow: visible !important;
+                height: auto !important;
+              }
+              body * {
+                visibility: hidden !important;
+              }
+              #printable-treasury-report, #printable-treasury-report * {
+                visibility: visible !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              #printable-treasury-report {
+                display: block !important;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 210mm !important;
+                min-height: 297mm !important;
+                background: white !important;
+                color: black !important;
+                padding: 10mm !important;
+                box-sizing: border-box !important;
+              }
+              @page {
+                size: A4 portrait;
+                margin: 0;
+              }
+            }
+          `}</style>
 
-          {/* Slide-over Right Drawer Panel */}
-          <motion.aside
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 26, stiffness: 240 }}
-            className="relative w-full sm:w-[480px] h-full bg-white dark:bg-zinc-900 border-l border-zinc-200/80 dark:border-zinc-800 shadow-2xl z-50 flex flex-col justify-between overflow-hidden text-zinc-900 dark:text-zinc-100"
-            dir="rtl"
-          >
-            {/* Drawer Top Header */}
-            <div className="px-6 py-4 border-b border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/70 dark:bg-zinc-900/80">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-xs">
-                  {mode === 'ADD_ENTITY' && <Plus className="w-5 h-5" />}
-                  {mode === 'PRINT_REPORT' && <FileText className="w-5 h-5" />}
-                  {mode === 'ADVANCED_FILTER' && <Filter className="w-5 h-5" />}
+          {/* Paper Header */}
+          <div className="flex items-center justify-between border-b-2 border-zinc-900 pb-4 mb-4">
+            <div className="flex items-center gap-3">
+              <img
+                src="/logo.png"
+                alt="شعار سلة الخير"
+                className="w-12 h-12 object-contain"
+                onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+              />
+              <div>
+                <h1 className="text-lg font-black text-zinc-900">سلة الخير — تقرير مستحقات الخزينة والجهات</h1>
+                <p className="text-xs text-zinc-600 font-semibold mt-0.5">
+                  منظومة سلة الخير لإدارة السيولة والخزينة
+                </p>
+              </div>
+            </div>
+            <div className="text-left text-xs text-zinc-600 ar-num space-y-0.5">
+              <div className="font-bold text-zinc-900">سلة الخير</div>
+              <div>تاريخ التقرير: {new Date().toLocaleDateString('ar-LY')}</div>
+              <div>إجمالي الجهات: {entities.length} جهة</div>
+            </div>
+          </div>
+
+          {/* Active Period Range Highlight Box */}
+          <div className="p-3 mb-4 rounded-lg bg-emerald-50 border border-emerald-300 text-xs font-extrabold text-emerald-950 flex items-center justify-between ar-num">
+            <span className="text-emerald-800">{getDateFilterText(dateFilter)}</span>
+            <span>عدد الجهات المدرجة: {entities.length}</span>
+          </div>
+
+          {/* Mini Summary Totals */}
+          <div className="grid grid-cols-3 gap-3 bg-zinc-50 p-3 rounded-lg border border-zinc-300 mb-5 text-xs ar-num">
+            <div className="p-2 bg-white rounded border border-zinc-200">
+              <span className="text-zinc-500 block text-[10px]">إجمالي الأصول</span>
+              <span className="font-black text-emerald-700 text-sm">{formatCurrency(totalBalanceCents)}</span>
+            </div>
+            <div className="p-2 bg-white rounded border border-zinc-200">
+              <span className="text-zinc-500 block text-[10px]">المودعات</span>
+              <span className="font-bold text-zinc-800 text-sm">{formatCurrency(totalDepositsCents)}</span>
+            </div>
+            <div className="p-2 bg-white rounded border border-zinc-200">
+              <span className="text-zinc-500 block text-[10px]">المسحوبات</span>
+              <span className="font-bold text-rose-700 text-sm">{formatCurrency(totalWithdrawalsCents)}</span>
+            </div>
+          </div>
+
+          {/* Full Table */}
+          <table className="w-full text-xs text-right border-collapse border border-zinc-900 mb-8">
+            <thead>
+              <tr className={reportTheme === 'EMERALD' ? 'bg-emerald-800 text-white' : reportTheme === 'BLUE' ? 'bg-sky-800 text-white' : 'bg-zinc-900 text-white'}>
+                <th className="p-2 border border-zinc-900 font-bold text-center w-10">#</th>
+                {columns.name && <th className="p-2 border border-zinc-900 font-bold">اسم الجهة</th>}
+                {columns.count && <th className="p-2 border border-zinc-900 font-bold text-center w-24">المعاملات</th>}
+                {columns.deposits && <th className="p-2 border border-zinc-900 font-bold text-left w-32">المودعات</th>}
+                {columns.withdrawals && <th className="p-2 border border-zinc-900 font-bold text-left w-32">المسحوبات</th>}
+                {columns.net && <th className="p-2 border border-zinc-900 font-bold text-left w-36">صافي الحساب</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {entities.map((ent, idx) => (
+                <tr key={ent.name} className={idx % 2 === 0 ? 'bg-white' : 'bg-zinc-50'}>
+                  <td className="p-2 border border-zinc-300 text-center font-mono ar-num">{idx + 1}</td>
+                  {columns.name && <td className="p-2 border border-zinc-300 font-bold text-zinc-900">{ent.name}</td>}
+                  {columns.count && <td className="p-2 border border-zinc-300 text-center ar-num font-medium">{ent.transactionCount}</td>}
+                  {columns.deposits && <td className="p-2 border border-zinc-300 text-left ar-num text-emerald-700 font-semibold">+{formatCurrency(ent.depositedCents)}</td>}
+                  {columns.withdrawals && <td className="p-2 border border-zinc-300 text-left ar-num text-rose-700 font-semibold">-{formatCurrency(ent.withdrawnCents)}</td>}
+                  {columns.net && (
+                    <td className={`p-2 border border-zinc-300 text-left ar-num font-black ${ent.netCents >= 0 ? 'text-emerald-800' : 'text-rose-800'}`}>
+                      {formatCurrency(ent.netCents)}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* Signatures Footer */}
+          <div className="pt-6 border-t-2 border-zinc-900 flex justify-between text-xs font-bold text-zinc-800 mt-8" dir="rtl">
+            <div>توقيع موظف الخزينة: ................................</div>
+            <div>اعتماد الإدارة المالية: ................................</div>
+          </div>
+        </div>
+      )}
+
+      {/* -------------------- INTERACTIVE ON-SCREEN DRAWER -------------------- */}
+      <AnimatePresence>
+        {mode && (
+          <div className="fixed inset-0 z-50 flex justify-end font-arabic select-none">
+            {/* Backdrop Overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onClose}
+              className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
+            />
+
+            {/* Slide-over Right Drawer Panel */}
+            <motion.aside
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 26, stiffness: 240 }}
+              className="relative w-full sm:w-[480px] h-full bg-white dark:bg-zinc-900 border-l border-zinc-200/80 dark:border-zinc-800 shadow-2xl z-50 flex flex-col justify-between overflow-hidden text-zinc-900 dark:text-zinc-100"
+              dir="rtl"
+            >
+              {/* Drawer Top Header */}
+              <div className="px-6 py-4 border-b border-zinc-200/80 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/70 dark:bg-zinc-900/80">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-xs">
+                    {mode === 'ADD_ENTITY' && <Plus className="w-5 h-5" />}
+                    {mode === 'PRINT_REPORT' && <FileText className="w-5 h-5" />}
+                    {mode === 'ADVANCED_FILTER' && <Filter className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+                      {mode === 'ADD_ENTITY' && 'إضافة جهة جديدة'}
+                      {mode === 'PRINT_REPORT' && 'طباعة تقارير ومستندات الخزينة'}
+                      {mode === 'ADVANCED_FILTER' && 'الفلترة والترتيب المتقدم'}
+                    </h2>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      {mode === 'ADD_ENTITY' && 'تسجيل جهة التعامل ورصيدها الأولي'}
+                      {mode === 'PRINT_REPORT' && 'تصدير ومعاينة المستندات الرسمية'}
+                      {mode === 'ADVANCED_FILTER' && 'تصفية وحصر مبالغ المستحقات'}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
-                    {mode === 'ADD_ENTITY' && 'إضافة جهة جديدة'}
-                    {mode === 'PRINT_REPORT' && 'طباعة تقارير ومستندات الخزينة'}
-                    {mode === 'ADVANCED_FILTER' && 'الفلترة والترتيب المتقدم'}
-                  </h2>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    {mode === 'ADD_ENTITY' && 'تسجيل جهة التعامل ورصيدها الأولي'}
-                    {mode === 'PRINT_REPORT' && 'تصدير ومعاينة المستندات الرسمية'}
-                    {mode === 'ADVANCED_FILTER' && 'تصفية وحصر مبالغ المستحقات'}
-                  </p>
-                </div>
+
+                <button
+                  onClick={onClose}
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+              {/* Drawer Body Scrollable Content */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
-            {/* Drawer Body Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* -------------------- CONTENT 1: ADD ENTITY -------------------- */}
+                {mode === 'ADD_ENTITY' && (
+                  <form onSubmit={handleAddSubmit} className="space-y-5">
+                    {errorMsg && (
+                      <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-xs font-semibold text-rose-700 dark:text-rose-300">
+                        {errorMsg}
+                      </div>
+                    )}
 
-              {/* -------------------- CONTENT 1: ADD ENTITY -------------------- */}
-              {mode === 'ADD_ENTITY' && (
-                <form onSubmit={handleAddSubmit} className="space-y-5">
-                  {errorMsg && (
-                    <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-xs font-semibold text-rose-700 dark:text-rose-300">
-                      {errorMsg}
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                        اسم الجهة أو المستفيد <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="أدخل اسم الجهة الجديدة..."
+                        value={newEntityName}
+                        onChange={(e) => setNewEntityName(e.target.value)}
+                        className="w-full h-10 px-3 text-xs rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 font-arabic"
+                      />
                     </div>
-                  )}
 
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                      اسم الجهة أو المستفيد <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="مثال: شركة المدار الجديد / التضامن"
-                      value={newEntityName}
-                      onChange={(e) => setNewEntityName(e.target.value)}
-                      className="w-full h-10 px-3 text-xs rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                      نوع المعاملة الأولى
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="pt-4 flex items-center gap-2">
+                      <button
+                        type="submit"
+                        disabled={submitting}
+                        className="flex-1 h-10 rounded-xl bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>{submitting ? 'جاري الإضافة...' : 'حفظ وإضافة الجهة'}</span>
+                      </button>
                       <button
                         type="button"
-                        onClick={() => setInitialTxType('DEPOSIT')}
-                        className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
-                          initialTxType === 'DEPOSIT'
-                            ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-500 text-emerald-700 dark:text-emerald-300'
-                            : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400'
-                        }`}
+                        onClick={onClose}
+                        className="px-4 h-10 rounded-xl border border-zinc-200 dark:border-zinc-700 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                       >
-                        <ArrowDownRight className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>إيداع رصيد أولي</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setInitialTxType('WITHDRAWAL')}
-                        className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${
-                          initialTxType === 'WITHDRAWAL'
-                            ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-500 text-rose-700 dark:text-rose-300'
-                            : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400'
-                        }`}
-                      >
-                        <ArrowUpRight className="w-3.5 h-3.5 text-rose-500" />
-                        <span>سحب رصيد أولي</span>
+                        إلغاء
                       </button>
                     </div>
-                  </div>
+                  </form>
+                )}
 
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                      المبلغ الأولي (د.ل)
-                    </label>
-                    <input
-                      type="number"
-                      step="any"
-                      placeholder="0.00"
-                      value={initialAmount}
-                      onChange={(e) => setInitialAmount(e.target.value)}
-                      className="w-full h-10 px-3 text-xs rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 ar-num"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                      ملاحظات أو وصف المعاملة
-                    </label>
-                    <textarea
-                      rows={3}
-                      placeholder="وصف اختياري للرصيد الأولي..."
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                      className="w-full p-3 text-xs rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
-                    />
-                  </div>
-
-                  <div className="pt-4 flex items-center gap-2">
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="flex-1 h-10 rounded-xl bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>{submitting ? 'جاري الإضافة...' : 'حفظ وإضافة الجهة'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="px-4 h-10 rounded-xl border border-zinc-200 dark:border-zinc-700 text-xs font-semibold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                    >
-                      إلغاء
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {/* -------------------- CONTENT 2: PRINT REPORT ENGINE -------------------- */}
-              {mode === 'PRINT_REPORT' && (
-                <div className="space-y-6">
-                  {/* Scope Notice Banner */}
+                {/* -------------------- CONTENT 2: PRINT REPORT ENGINE -------------------- */}
+                {mode === 'PRINT_REPORT' && (
+                  <div className="space-y-6">
+                    {/* Scope Notice Banner */}
                   <div className="p-3.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
                     <span className="font-semibold">نطاق التقرير النشط:</span>
                     <span className="font-bold ar-num">
-                      {!dateFilter || dateFilter.mode === 'NONE'
-                        ? 'كافة السجلات التاريخية'
-                        : dateFilter.mode === 'MONTH'
-                        ? `شهر ${dateFilter.month + 1} - ${dateFilter.year}`
-                        : dateFilter.mode === 'DAY'
-                        ? `يوم ${dateFilter.date.getDate()}/${dateFilter.date.getMonth() + 1}/${dateFilter.date.getFullYear()}`
-                        : 'مجال تواريخ مخصص'}
+                      {getDateFilterText(dateFilter)}
                     </span>
-                  </div>
-
-                  {/* Report Type Select */}
-                  <div>
-                    <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-2">
-                      نوع التقرير
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => setReportType('SUMMARY')}
-                        className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
-                          reportType === 'SUMMARY'
-                            ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-zinc-900 dark:border-zinc-100'
-                            : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400'
-                        }`}
-                      >
-                        تقرير ملخص المستحقات
-                      </button>
-                      <button
-                        onClick={() => setReportType('DETAILED')}
-                        className={`py-2 px-3 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
-                          reportType === 'DETAILED'
-                            ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-zinc-900 dark:border-zinc-100'
-                            : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400'
-                        }`}
-                      >
-                        تقرير شامل مفصل
-                      </button>
-                    </div>
                   </div>
 
                   {/* Theme Colors */}
@@ -433,11 +481,20 @@ export function TreasuryDrawer({
                     >
                       {/* Paper Header */}
                       <div className="flex items-center justify-between border-b pb-3 border-zinc-200">
-                        <div>
-                          <h3 className="text-sm font-bold text-zinc-900">تقرير مستحقات الخزينة الرسمية</h3>
-                          <p className="text-[10px] text-zinc-500">نظام إدارة الخزينة والمستحقات النقدية</p>
+                        <div className="flex items-center gap-2.5">
+                          <img
+                            src="/logo.png"
+                            alt="شعار سلة الخير"
+                            className="w-10 h-10 object-contain"
+                            onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+                          />
+                          <div>
+                            <h3 className="text-sm font-bold text-zinc-900">سلة الخير — تقرير مستحقات الخزينة</h3>
+                            <p className="text-[10px] text-emerald-700 font-bold">{getDateFilterText(dateFilter)}</p>
+                          </div>
                         </div>
                         <div className="text-left text-[10px] text-zinc-500 ar-num">
+                          <div className="font-bold text-zinc-800">سلة الخير</div>
                           <div>تاريخ التقرير: {new Date().toLocaleDateString('ar-LY')}</div>
                           <div>عدد الجهات: {entities.length}</div>
                         </div>
@@ -447,15 +504,15 @@ export function TreasuryDrawer({
                       <div className="grid grid-cols-3 gap-2 bg-zinc-50 p-2.5 rounded-lg text-[11px] ar-num">
                         <div>
                           <span className="text-zinc-500 block text-[9px]">إجمالي الأصول</span>
-                          <span className="font-bold text-emerald-700">{formatCurrency(totalBalanceCents)} د.ل</span>
+                          <span className="font-bold text-emerald-700">{formatCurrency(totalBalanceCents)}</span>
                         </div>
                         <div>
                           <span className="text-zinc-500 block text-[9px]">المودعات</span>
-                          <span className="font-bold text-zinc-800">{formatCurrency(totalDepositsCents)} د.ل</span>
+                          <span className="font-bold text-zinc-800">{formatCurrency(totalDepositsCents)}</span>
                         </div>
                         <div>
                           <span className="text-zinc-500 block text-[9px]">المسحوبات</span>
-                          <span className="font-bold text-rose-700">{formatCurrency(totalWithdrawalsCents)} د.ل</span>
+                          <span className="font-bold text-rose-700">{formatCurrency(totalWithdrawalsCents)}</span>
                         </div>
                       </div>
 
@@ -482,7 +539,7 @@ export function TreasuryDrawer({
                                 {columns.withdrawals && <td className="p-1.5 border-b ar-num text-rose-600">-{formatCurrency(ent.withdrawnCents)}</td>}
                                 {columns.net && (
                                   <td className={`p-1.5 border-b ar-num font-bold ${ent.netCents >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                                    {formatCurrency(ent.netCents)} د.ل
+                                    {formatCurrency(ent.netCents)}
                                   </td>
                                 )}
                               </tr>
@@ -671,5 +728,6 @@ export function TreasuryDrawer({
         </div>
       )}
     </AnimatePresence>
+    </>
   )
 }

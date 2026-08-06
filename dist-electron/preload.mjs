@@ -7,7 +7,8 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
   getChartData: (params) => electron.ipcRenderer.invoke("db:get-chart-data", params),
   togglePin: (id) => electron.ipcRenderer.invoke("db:toggle-pin", id),
   deleteTransaction: (id) => electron.ipcRenderer.invoke("db:delete-transaction", id),
-  archiveTransaction: (id) => electron.ipcRenderer.invoke("db:archive-transaction", id)
+  archiveTransaction: (id) => electron.ipcRenderer.invoke("db:archive-transaction", id),
+  updateEntityName: (params) => electron.ipcRenderer.invoke("db:update-entity-name", params)
 });
 electron.contextBridge.exposeInMainWorld("ipcRenderer", {
   on(...args) {

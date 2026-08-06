@@ -6,6 +6,8 @@ import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import { formatCurrency } from '@/lib/utils'
 import type { Transaction } from '@/types'
 import { DeleteConfirmModal } from '../dashboard/DeleteConfirmModal'
+import { usePermission } from '@/hooks/usePermission'
+import { logUserAction } from '@/lib/auditLogger'
 
 export interface EntityBalance {
   name: string
@@ -36,6 +38,8 @@ export function TrashDrawer({
   onRestoreTreasuryEntity,
   onPermanentDeleteTreasuryEntity,
 }: TrashDrawerProps) {
+  const { hasPermission } = usePermission()
+  const canDeleteItems = hasPermission('delete_items')
   const [activeTab, setActiveTab] = useState<'DASHBOARD' | 'TREASURY'>('DASHBOARD')
 
   // Swiped row states for slide-to-reveal action bar
@@ -73,6 +77,11 @@ export function TrashDrawer({
   if (!open) return null
 
   const handleConfirmDelete = async () => {
+    if (!canDeleteItems) {
+      alert('عفواً، لا تملك صلاحية حذف العناصر والعمليات')
+      setPendingDelete(null)
+      return
+    }
     if (!pendingDelete) return
     if (pendingDelete.type === 'DASHBOARD') {
       await onPermanentDeleteDashboardRow(pendingDelete.idOrName as number)
@@ -210,6 +219,7 @@ export function TrashDrawer({
                                           <button
                                             onClick={async (e) => {
                                               e.stopPropagation()
+                                              logUserAction('RESTORE', 'سلة المهملات والأرشيف', 'استعادة معاملة من سلة المهملات', `معاملة جهة: ${tx.client_name} | قيمة: ${formatCurrency(tx.amount_cents)}`)
                                               await onRestoreDashboardRow(tx.id)
                                               setSwipedDashId(null)
                                             }}
@@ -219,23 +229,25 @@ export function TrashDrawer({
                                             <RotateCcw className="w-3.5 h-3.5" />
                                             <span>استعادة</span>
                                           </button>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation()
-                                              setPendingDelete({ type: 'DASHBOARD', idOrName: tx.id })
-                                            }}
-                                            className="px-3 bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1 font-bold text-[11px] transition-colors"
-                                            title="حذف نهائي"
-                                          >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                            <span>حذف نهائي</span>
-                                          </button>
+                                          {canDeleteItems && (
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                setPendingDelete({ type: 'DASHBOARD', idOrName: tx.id })
+                                              }}
+                                              className="px-3 bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1 font-bold text-[11px] transition-colors"
+                                              title="حذف نهائي"
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                              <span>حذف نهائي</span>
+                                            </button>
+                                          )}
                                         </div>
                                       )}
 
                                       {/* Row Content Layer */}
                                       <motion.div
-                                        animate={{ x: isSwiped ? 130 : 0 }}
+                                        animate={{ x: isSwiped ? (canDeleteItems ? 130 : 70) : 0 }}
                                         transition={{ type: 'spring', stiffness: 300, damping: 26 }}
                                         className="flex items-center w-full px-3 py-2.5 bg-inherit opacity-80"
                                       >
@@ -321,23 +333,25 @@ export function TrashDrawer({
                                             <RotateCcw className="w-3.5 h-3.5" />
                                             <span>استعادة</span>
                                           </button>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation()
-                                              setPendingDelete({ type: 'TREASURY', idOrName: entity.name })
-                                            }}
-                                            className="px-3 bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1 font-bold text-[11px] transition-colors"
-                                            title="حذف نهائي"
-                                          >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                            <span>حذف نهائي</span>
-                                          </button>
+                                          {canDeleteItems && (
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                setPendingDelete({ type: 'TREASURY', idOrName: entity.name })
+                                              }}
+                                              className="px-3 bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1 font-bold text-[11px] transition-colors"
+                                              title="حذف نهائي"
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                              <span>حذف نهائي</span>
+                                            </button>
+                                          )}
                                         </div>
                                       )}
 
                                       {/* Row Content Layer */}
                                       <motion.div
-                                        animate={{ x: isSwiped ? 130 : 0 }}
+                                        animate={{ x: isSwiped ? (canDeleteItems ? 130 : 70) : 0 }}
                                         transition={{ type: 'spring', stiffness: 300, damping: 26 }}
                                         className="flex items-center w-full px-3 py-2.5 bg-inherit opacity-80"
                                       >

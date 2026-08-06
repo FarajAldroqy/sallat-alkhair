@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle } from 'lucide-react'
+import { usePermission } from '@/hooks/usePermission'
 
 interface DeleteConfirmModalProps {
   open: boolean
@@ -16,6 +17,19 @@ interface DeleteConfirmModalProps {
 }
 
 export function DeleteConfirmModal({ open, onClose, onConfirm }: DeleteConfirmModalProps) {
+  const { hasPermission } = usePermission()
+  const canDeleteItems = hasPermission('delete_items')
+
+  const handleConfirm = () => {
+    if (!canDeleteItems) {
+      alert('عذراً، لا تملك صلاحية الحذف')
+      onClose()
+      return
+    }
+    onConfirm()
+    onClose()
+  }
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md bg-white border-zinc-200 text-zinc-900 shadow-2xl rounded-2xl p-6" dir="rtl">
@@ -38,10 +52,7 @@ export function DeleteConfirmModal({ open, onClose, onConfirm }: DeleteConfirmMo
         <DialogFooter className="flex-row-reverse gap-2 mt-6 font-arabic">
           <Button
             type="button"
-            onClick={() => {
-              onConfirm()
-              onClose()
-            }}
+            onClick={handleConfirm}
             className="flex-1 text-xs bg-rose-600 hover:bg-rose-500 text-white font-arabic font-bold rounded-lg shadow-sm"
           >
             تأكيد الحذف

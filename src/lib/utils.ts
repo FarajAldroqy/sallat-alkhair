@@ -15,6 +15,16 @@ export function formatCurrency(cents: number, _locale = 'ar-LY'): string {
   return `${formatted} د.ل`
 }
 
+/** Convert Eastern Arabic (٠-٩) and Persian (۰-۹) numerals into standard Western (0-9) digits */
+export function normalizeArabicNumerals(input: string): string {
+  const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩']
+  const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
+
+  return input
+    .replace(/[٠-٩]/g, (w) => arabicDigits.indexOf(w).toString())
+    .replace(/[۰-۹]/g, (w) => persianDigits.indexOf(w).toString())
+}
+
 /** Format date into Arabic/Standard date string */
 export function formatDate(dateStr: string, locale = 'ar-LY'): string {
   try {
@@ -42,10 +52,10 @@ export function formatShort(cents: number): string {
   return formatCurrency(cents)
 }
 
-/** Filter transactions array by DateFilter mode (NONE, MONTH, DAY, RANGE) */
+/** Filter transactions array by DateFilter mode (NONE, YEAR, MONTH, DAY, RANGE) */
 export function filterTransactionsByDate<T extends { created_at: string }>(
   items: T[],
-  filter?: { mode: string; year?: number; month?: number; date?: Date; from?: Date; to?: Date }
+  filter?: { mode: string; year?: number | string; month?: number | string; date?: Date | string; from?: Date | string; to?: Date | string }
 ): T[] {
   if (!filter || filter.mode === 'NONE') return items
 
@@ -53,12 +63,20 @@ export function filterTransactionsByDate<T extends { created_at: string }>(
     const txDate = new Date(tx.created_at)
     if (isNaN(txDate.getTime())) return true
 
-    if (filter.mode === 'MONTH' && filter.year !== undefined && filter.month !== undefined) {
-      return txDate.getFullYear() === filter.year && txDate.getMonth() === filter.month
+    if (filter.mode === 'YEAR' && filter.year !== undefined && filter.year !== null) {
+      return txDate.getFullYear() === Number(filter.year)
+    }
+
+    if (filter.mode === 'MONTH' && filter.year !== undefined && filter.month !== undefined && filter.year !== null && filter.month !== null) {
+      return (
+        txDate.getFullYear() === Number(filter.year) &&
+        txDate.getMonth() === Number(filter.month)
+      )
     }
 
     if (filter.mode === 'DAY' && filter.date) {
-      const d = filter.date
+      const d = new Date(filter.date)
+      if (isNaN(d.getTime())) return true
       return (
         txDate.getFullYear() === d.getFullYear() &&
         txDate.getMonth() === d.getMonth() &&
@@ -75,5 +93,60 @@ export function filterTransactionsByDate<T extends { created_at: string }>(
 
     return true
   })
+}
+
+/** Helper to format DateFilter into clean Arabic text string */
+export function getDateFilterText(filter?: any): string {
+  if (!filter || filter.mode === 'NONE') {
+    return 'تقرير شامل لجميع الفترات'
+  }
+
+  if (filter.mode === 'YEAR' && filter.year) {
+    return `الفترة: سنة ${filter.year}`
+  }
+
+  if (filter.mode === 'MONTH' && filter.year !== undefined && filter.month !== undefined) {
+    const monthsList = [
+      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+    ]
+    return `الفترة: شهر ${monthsList[filter.month]} ${filter.year}`
+  }
+
+  if (filter.mode === 'DAY' && filter.date) {
+    try {
+      const d = new Date(filter.date)
+      const formatted = new Intl.DateTimeFormat('ar-LY', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }).format(d)
+      return `الفترة: يوم ${formatted}`
+    } catch {
+      return 'تقرير يومي'
+    }
+  }
+
+  if (filter.mode === 'RANGE' && filter.from && filter.to) {
+    try {
+      const fromStr = new Intl.DateTimeFormat('ar-LY', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      }).format(new Date(filter.from))
+
+      const toStr = new Intl.DateTimeFormat('ar-LY', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      }).format(new Date(filter.to))
+
+      return `الفترة: من ${fromStr} إلى ${toStr}`
+    } catch {
+      return 'تقرير فترة محددة'
+    }
+  }
+
+  return 'تقرير شامل لجميع الفترات'
 }
 

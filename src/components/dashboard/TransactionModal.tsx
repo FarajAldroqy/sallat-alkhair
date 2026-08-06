@@ -19,20 +19,27 @@ import {
 } from '@/components/ui/select'
 import { ArrowDownCircle, ArrowUpCircle, Loader2 } from 'lucide-react'
 import type { TransactionCreate, PaymentMethod } from '@/types'
+import { normalizeArabicNumerals } from '@/lib/utils'
+import { usePermission } from '@/hooks/usePermission'
 
 interface TransactionModalProps {
   open: boolean
   mode: 'DEPOSIT' | 'WITHDRAWAL'
   onClose: () => void
   onSubmit: (data: TransactionCreate) => Promise<void>
+  entities?: string[]
 }
 
-export function TransactionModal({ open, mode, onClose, onSubmit }: TransactionModalProps) {
+export function TransactionModal({ open, mode, onClose, onSubmit, entities = [] }: TransactionModalProps) {
+  const { hasPermission } = usePermission()
+  const canEditData = hasPermission('edit_data')
+
   const [clientName, setClientName] = useState('')
   const [amountStr, setAmountStr] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('نقداً')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [customEntityMode, setCustomEntityMode] = useState(false)
 
   const isDeposit = mode === 'DEPOSIT'
 
@@ -42,6 +49,7 @@ export function TransactionModal({ open, mode, onClose, onSubmit }: TransactionM
     setPaymentMethod('نقداً')
     setError('')
     setLoading(false)
+    setCustomEntityMode(false)
   }
 
   const handleClose = () => {
@@ -49,12 +57,28 @@ export function TransactionModal({ open, mode, onClose, onSubmit }: TransactionM
     onClose()
   }
 
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawVal = e.target.value
+    const normalized = normalizeArabicNumerals(rawVal)
+    // Strip non-numeric & non-decimal chars
+    const cleaned = normalized.replace(/[^0-9.]/g, '')
+    // Prevent multiple decimal points
+    const parts = cleaned.split('.')
+    const validVal = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : cleaned
+    setAmountStr(validVal)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
+    if (!canEditData) {
+      setError('عذراً، لا تملك صلاحية إضافة وتعديل البيانات')
+      return
+    }
+
     const amount = parseFloat(amountStr.replace(/,/g, ''))
-    if (!clientName.trim()) return setError('يرجى إدخال اسم الجهة / العميل')
+    if (!clientName.trim()) return setError('يرجى اختيار أو إدخال اسم الجهة / العميل')
     if (isNaN(amount) || amount <= 0) return setError('يرجى إدخال مبلغ صحيح أكبر من الصفر')
 
     setLoading(true)
@@ -75,14 +99,18 @@ export function TransactionModal({ open, mode, onClose, onSubmit }: TransactionM
     }
   }
 
+  const hasSavedEntities = entities.length > 0
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="sm:max-w-md bg-white border-zinc-200 text-zinc-900 shadow-2xl rounded-2xl p-6" dir="rtl">
+      <DialogContent className="sm:max-w-md bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-2xl rounded-2xl p-6" dir="rtl">
         <DialogHeader className="text-right">
           <div className="flex items-center gap-3 mb-1">
             <div
               className={`flex items-center justify-center w-10 h-10 rounded-xl ${
-                isDeposit ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                isDeposit
+                  ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                  : 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300'
               }`}
             >
               {isDeposit
@@ -91,10 +119,10 @@ export function TransactionModal({ open, mode, onClose, onSubmit }: TransactionM
               }
             </div>
             <div>
-              <DialogTitle className="text-base font-bold font-arabic text-zinc-900">
+              <DialogTitle className="text-base font-bold font-arabic text-zinc-900 dark:text-zinc-100">
                 {isDeposit ? 'تسجيل إيداع جديد' : 'تسجيل سحب جديد'}
               </DialogTitle>
-              <DialogDescription className="text-xs text-zinc-500 font-arabic">
+              <DialogDescription className="text-xs text-zinc-500 dark:text-zinc-400 font-arabic">
                 {isDeposit
                   ? 'أدخل بيانات المعاملة المالية للإيداع أدناه'
                   : 'أدخل بيانات المعاملة المالية للسحب أدناه'
@@ -105,66 +133,108 @@ export function TransactionModal({ open, mode, onClose, onSubmit }: TransactionM
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 mt-2 font-arabic">
-          {/* اسم الجهة */}
+
+          {/* 1. اسم الجهة (Dropdown or Custom Input) */}
           <div className="space-y-1.5">
-            <Label htmlFor="modal-client" className="text-xs font-semibold text-zinc-700 block text-right">
-              اسم الجهة / العميل
-            </Label>
-            <Input
-              id="modal-client"
-              placeholder="مثال: شركة المدار الجديد"
-              value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
-              className="bg-white border-zinc-200 text-xs text-zinc-900 rounded-lg focus-visible:ring-zinc-400 font-arabic text-right"
-              autoComplete="off"
-            />
+            <div className="flex items-center justify-between">
+              <Label htmlFor="modal-client" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block text-right">
+                اسم الجهة / العميل
+              </Label>
+              {hasSavedEntities && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomEntityMode((prev) => !prev)
+                    setClientName('')
+                  }}
+                  className="text-[11px] text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                >
+                  {customEntityMode ? 'اختيار من الخزينة' : '+ جهة جديدة غير قائمة'}
+                </button>
+              )}
+            </div>
+
+            {!customEntityMode && hasSavedEntities ? (
+              /* Styled Select Dropdown for saved entities */
+              <div className="relative">
+                <select
+                  id="modal-client"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  className="w-full h-9 px-3 py-1.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs font-semibold text-zinc-900 dark:text-zinc-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/40 font-arabic text-right cursor-pointer"
+                >
+                  <option value="" disabled>-- اختر الجهة --</option>
+                  {entities.map((ent) => (
+                    <option key={ent} value={ent} className="bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100">
+                      {ent}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              /* Manual Input if customEntityMode or no saved entities */
+              <div className="space-y-1">
+                <Input
+                  id="modal-client"
+                  placeholder="مثال: شركة المدار الجديد"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 rounded-lg focus-visible:ring-zinc-400 font-arabic text-right"
+                  autoComplete="off"
+                />
+                {!hasSavedEntities && (
+                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                    لا توجد جهات مضافة بعد (أضف جهة من الخزينة)
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* القيمة (د.ل) */}
+          {/* 2. القيمة (د.ل) مع تحويل الأرقام العربية تلقائياً */}
           <div className="space-y-1.5">
-            <Label htmlFor="modal-amount" className="text-xs font-semibold text-zinc-700 block text-right">
+            <Label htmlFor="modal-amount" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block text-right">
               القيمة (بالدينار الليبي د.ل)
             </Label>
             <div className="relative">
               <Input
                 id="modal-amount"
-                type="number"
-                min="0.01"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
                 placeholder="0.00"
                 value={amountStr}
-                onChange={(e) => setAmountStr(e.target.value)}
-                className="bg-white border-zinc-200 text-xs text-zinc-900 rounded-lg pl-14 font-sans text-left ar-num"
+                onChange={handleAmountChange}
+                className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 rounded-lg pl-14 font-sans text-left ar-num"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 font-semibold font-arabic">
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 font-semibold font-arabic pointer-events-none">
                 د.ل
               </span>
             </div>
           </div>
 
-          {/* اسلوب الدفع */}
+          {/* 3. اسلوب الدفع */}
           <div className="space-y-1.5">
-            <Label htmlFor="modal-payment-method" className="text-xs font-semibold text-zinc-700 block text-right">
+            <Label htmlFor="modal-payment-method" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block text-right">
               اسلوب الدفع
             </Label>
             <Select
               value={paymentMethod}
               onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
             >
-              <SelectTrigger id="modal-payment-method" className="bg-white border-zinc-200 text-xs text-zinc-900 rounded-lg font-arabic" dir="rtl">
+              <SelectTrigger id="modal-payment-method" className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 rounded-lg font-arabic" dir="rtl">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-white border-zinc-200" dir="rtl">
-                <SelectItem value="نقداً" className="text-xs text-zinc-800 font-arabic">نقداً (Cash)</SelectItem>
-                <SelectItem value="تحويل مصرفي" className="text-xs text-zinc-800 font-arabic">تحويل مصرفي (Bank Transfer)</SelectItem>
-                <SelectItem value="بطاقة" className="text-xs text-zinc-800 font-arabic">بطاقة (Card)</SelectItem>
+              <SelectContent className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700" dir="rtl">
+                <SelectItem value="نقداً" className="text-xs text-zinc-800 dark:text-zinc-200 font-arabic">نقداً (Cash)</SelectItem>
+                <SelectItem value="تحويل مصرفي" className="text-xs text-zinc-800 dark:text-zinc-200 font-arabic">تحويل مصرفي (Bank Transfer)</SelectItem>
+                <SelectItem value="بطاقة" className="text-xs text-zinc-800 dark:text-zinc-200 font-arabic">بطاقة (Card)</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           {/* Error */}
           {error && (
-            <p className="text-xs text-rose-600 font-medium font-arabic text-right">{error}</p>
+            <p className="text-xs text-rose-600 dark:text-rose-400 font-medium font-arabic text-right">{error}</p>
           )}
 
           <DialogFooter className="flex-row-reverse gap-2 mt-6">
@@ -187,7 +257,7 @@ export function TransactionModal({ open, mode, onClose, onSubmit }: TransactionM
               type="button"
               variant="outline"
               onClick={handleClose}
-              className="flex-1 text-xs bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50 font-arabic rounded-lg"
+              className="flex-1 text-xs bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 font-arabic rounded-lg"
             >
               إلغاء
             </Button>

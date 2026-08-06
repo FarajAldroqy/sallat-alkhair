@@ -13,12 +13,7 @@ const MONTH_NAMES_AR = [
   'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'
 ]
 
-const MONTH_EN_FULL = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-]
-
-const WEEKDAY_NAMES_EN = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+const WEEKDAY_NAMES_AR = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت']
 
 function isSameDay(a: Date, b: Date): boolean {
   return (
@@ -29,10 +24,14 @@ function isSameDay(a: Date, b: Date): boolean {
 }
 
 export function SidebarCalendar({ dateFilter, onDateFilterChange }: SidebarCalendarProps) {
+  // View mode state: 'days' or 'years'
+  const [viewMode, setViewMode] = useState<'days' | 'years'>('days')
+
   // View date state for navigating month/year
   const [viewDate, setViewDate] = useState<Date>(() => {
     if (dateFilter.mode === 'DAY') return new Date(dateFilter.date)
     if (dateFilter.mode === 'MONTH') return new Date(dateFilter.year, dateFilter.month, 1)
+    if (dateFilter.mode === 'YEAR') return new Date(dateFilter.year, 0, 1)
     if (dateFilter.mode === 'RANGE') return new Date(dateFilter.from)
     return new Date()
   })
@@ -50,6 +49,9 @@ export function SidebarCalendar({ dateFilter, onDateFilterChange }: SidebarCalen
     } else if (dateFilter.mode === 'MONTH') {
       setViewDate(new Date(dateFilter.year, dateFilter.month, 1))
       setPendingFromDate(null)
+    } else if (dateFilter.mode === 'YEAR') {
+      setViewDate(new Date(dateFilter.year, 0, 1))
+      setPendingFromDate(null)
     } else if (dateFilter.mode === 'RANGE') {
       setViewDate(new Date(dateFilter.from))
       setPendingFromDate(null)
@@ -64,16 +66,32 @@ export function SidebarCalendar({ dateFilter, onDateFilterChange }: SidebarCalen
 
   // Arrow navigation MUST ONLY update viewDate, preserving range selection!
   const handlePrevMonth = () => {
-    setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
+    if (viewMode === 'years') {
+      setViewDate((prev) => new Date(prev.getFullYear() - 12, prev.getMonth(), 1))
+    } else {
+      setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
+    }
   }
 
   const handleNextMonth = () => {
-    setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
+    if (viewMode === 'years') {
+      setViewDate((prev) => new Date(prev.getFullYear() + 12, prev.getMonth(), 1))
+    } else {
+      setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
+    }
   }
 
   const handleSelectMonth = () => {
     setPendingFromDate(null)
     onDateFilterChange({ mode: 'MONTH', year, month })
+  }
+
+  const handleYearSelect = (selectedYear: number) => {
+    setViewDate(new Date(selectedYear, month, 1))
+    setViewMode('days')
+    setPendingFromDate(null)
+    // Clear month level filter and trigger YEAR-ONLY filtering
+    onDateFilterChange({ mode: 'YEAR', year: selectedYear })
   }
 
   const handleSelectDay = (dayNum: number, event: React.MouseEvent) => {
@@ -108,6 +126,7 @@ export function SidebarCalendar({ dateFilter, onDateFilterChange }: SidebarCalen
     setViewDate(new Date())
     setPendingFromDate(null)
     setHoverDate(null)
+    setViewMode('days')
     onDateFilterChange({ mode: 'NONE' })
   }
 
@@ -119,10 +138,20 @@ export function SidebarCalendar({ dateFilter, onDateFilterChange }: SidebarCalen
   const today = new Date()
   const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month
 
-  // Active filter text label
+  // Header display text logic
+  let headerText = ''
+  if (viewMode === 'years') {
+    headerText = `اختيار السنة (${year})`
+  } else {
+    headerText = `${MONTH_NAMES_AR[month]} ${year}`
+  }
+
+  // Active filter text label for footer badge
   let filterBadgeLabel = ''
-  if (dateFilter.mode === 'MONTH') {
-    filterBadgeLabel = `${MONTH_NAMES_AR[dateFilter.month]} ${dateFilter.year}`
+  if (dateFilter.mode === 'YEAR') {
+    filterBadgeLabel = `كامل سنة ${dateFilter.year}`
+  } else if (dateFilter.mode === 'MONTH') {
+    filterBadgeLabel = `شهر ${MONTH_NAMES_AR[dateFilter.month]} ${dateFilter.year}`
   } else if (dateFilter.mode === 'DAY') {
     const d = dateFilter.date
     filterBadgeLabel = `${d.getDate()} ${MONTH_NAMES_AR[d.getMonth()]} ${d.getFullYear()}`
@@ -132,145 +161,177 @@ export function SidebarCalendar({ dateFilter, onDateFilterChange }: SidebarCalen
     filterBadgeLabel = `من: ${f.getDate()} ${MONTH_NAMES_AR[f.getMonth()]} إلى: ${t.getDate()} ${MONTH_NAMES_AR[t.getMonth()]} ${t.getFullYear()}`
   }
 
+  // Generate array of 12 years around current view year
+  const yearsList = Array.from({ length: 12 }, (_, i) => year - 5 + i)
+
   return (
-    <div className="mt-2.5 p-2 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/40 transition-colors select-none">
+    <div className="mt-2.5 p-2 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/40 transition-colors select-none font-arabic" dir="rtl">
       {/* Month & Year Header */}
       <div className="flex items-center justify-between mb-3 px-1">
+        {/* Right Arrow (Previous Month / Period in RTL) */}
         <button
           onClick={handlePrevMonth}
           className="p-1 rounded-md text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-          title="الشهر السابق"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-
-        <button
-          onClick={handleSelectMonth}
-          className={`text-xs font-semibold text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
-            dateFilter.mode === 'MONTH' && dateFilter.year === year && dateFilter.month === month
-              ? 'bg-zinc-100 dark:bg-zinc-800 font-bold text-emerald-600 dark:text-emerald-400'
-              : ''
-          }`}
-          title="فلترة حسب هذا الشهر"
-        >
-          {MONTH_EN_FULL[month]} {year}
-        </button>
-
-        <button
-          onClick={handleNextMonth}
-          className="p-1 rounded-md text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-          title="الشهر التالي"
+          title={viewMode === 'years' ? 'السنوات السابقة' : 'الشهر السابق'}
         >
           <ChevronRight className="w-4 h-4" />
         </button>
+
+        {/* Localized Arabic Month and Year Header with Double-Click Year Picker Toggle */}
+        <button
+          onClick={handleSelectMonth}
+          onDoubleClick={() => setViewMode(viewMode === 'days' ? 'years' : 'days')}
+          className={`text-xs font-bold text-zinc-900 dark:text-zinc-100 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 px-2.5 py-1 rounded-md transition-colors cursor-pointer ar-num ${
+            (dateFilter.mode === 'MONTH' && dateFilter.year === year && dateFilter.month === month) ||
+            (dateFilter.mode === 'YEAR' && dateFilter.year === year)
+              ? 'bg-zinc-100 dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 font-extrabold'
+              : ''
+          }`}
+          title="انقر مرة للفلترة بالشهر، انقر مرتين لاختيار السنة"
+        >
+          {headerText}
+        </button>
+
+        {/* Left Arrow (Next Month / Period in RTL) */}
+        <button
+          onClick={handleNextMonth}
+          className="p-1 rounded-md text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+          title={viewMode === 'years' ? 'السنوات التالية' : 'الشهر التالي'}
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
       </div>
 
-      {/* Weekday Headers */}
-      <div className="grid grid-cols-7 gap-1 text-center mb-1">
-        {WEEKDAY_NAMES_EN.map((day) => (
-          <span key={day} className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500">
-            {day}
-          </span>
-        ))}
-      </div>
+      {/* RENDER YEARS GRID OR DAYS GRID BASED ON viewMode */}
+      {viewMode === 'years' ? (
+        <div className="grid grid-cols-3 gap-2 p-2 max-h-48 overflow-y-auto">
+          {yearsList.map((y) => {
+            const isYearSelected = dateFilter.mode === 'YEAR' && dateFilter.year === y
+            return (
+              <button
+                key={y}
+                onClick={() => handleYearSelect(y)}
+                className={`p-2 rounded-lg text-xs font-bold font-arabic ar-num transition-colors cursor-pointer ${
+                  isYearSelected || y === year
+                    ? 'bg-emerald-600 text-white font-extrabold shadow-sm'
+                    : 'bg-zinc-100 hover:bg-emerald-500 hover:text-white dark:bg-zinc-800 dark:hover:bg-emerald-600 text-zinc-900 dark:text-zinc-100'
+                }`}
+              >
+                {y}
+              </button>
+            )
+          })}
+        </div>
+      ) : (
+        <>
+          {/* Weekday Headers */}
+          <div className="grid grid-cols-7 gap-1 text-center mb-1">
+            {WEEKDAY_NAMES_AR.map((day) => (
+              <span key={day} className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500">
+                {day}
+              </span>
+            ))}
+          </div>
 
-      {/* Days Grid */}
-      <div
-        className="grid grid-cols-7 gap-y-1 gap-x-0 text-center"
-        onMouseLeave={() => setHoverDate(null)}
-      >
-        {/* Previous Month Days */}
-        {Array.from({ length: firstDayOfWeek }).map((_, i) => {
-          const prevDay = daysInPrevMonth - firstDayOfWeek + i + 1
-          return (
-            <div
-              key={`prev-${i}`}
-              className="h-7 text-xs flex items-center justify-center text-zinc-300 dark:text-zinc-700 pointer-events-none"
-            >
-              {prevDay}
-            </div>
-          )
-        })}
+          {/* Days Grid */}
+          <div
+            className="grid grid-cols-7 gap-y-1 gap-x-0 text-center"
+            onMouseLeave={() => setHoverDate(null)}
+          >
+            {/* Previous Month Days */}
+            {Array.from({ length: firstDayOfWeek }).map((_, i) => {
+              const prevDay = daysInPrevMonth - firstDayOfWeek + i + 1
+              return (
+                <div
+                  key={`prev-${i}`}
+                  className="h-7 text-xs flex items-center justify-center text-zinc-300 dark:text-zinc-700 pointer-events-none ar-num"
+                >
+                  {prevDay}
+                </div>
+              )
+            })}
 
-        {/* Current Month Days */}
-        {Array.from({ length: daysInMonth }).map((_, i) => {
-          const dayNum = i + 1
-          const isToday = isCurrentMonth && today.getDate() === dayNum
-          const dayDate = new Date(year, month, dayNum)
-          const currentDayTime = new Date(year, month, dayNum, 0, 0, 0, 0).getTime()
+            {/* Current Month Days */}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const dayNum = i + 1
+              const isToday = isCurrentMonth && today.getDate() === dayNum
+              const dayDate = new Date(year, month, dayNum)
+              const currentDayTime = new Date(year, month, dayNum, 0, 0, 0, 0).getTime()
 
-          let isSelectedDay = false
-          let isRangeStart = false
-          let isRangeEnd = false
-          let isRangeBetween = false
+              let isSelectedDay = false
+              let isRangeStart = false
+              let isRangeEnd = false
+              let isRangeBetween = false
 
-          if (dateFilter.mode === 'DAY') {
-            isSelectedDay = isSameDay(dateFilter.date, dayDate)
-          } else if (dateFilter.mode === 'RANGE') {
-            const fromTime = new Date(dateFilter.from).setHours(0, 0, 0, 0)
-            const toTime = new Date(dateFilter.to).setHours(23, 59, 59, 999)
+              if (dateFilter.mode === 'DAY') {
+                isSelectedDay = isSameDay(dateFilter.date, dayDate)
+              } else if (dateFilter.mode === 'RANGE') {
+                const fromTime = new Date(dateFilter.from).setHours(0, 0, 0, 0)
+                const toTime = new Date(dateFilter.to).setHours(23, 59, 59, 999)
 
-            const isFrom = isSameDay(dateFilter.from, dayDate)
-            const isTo = isSameDay(dateFilter.to, dayDate)
+                const isFrom = isSameDay(dateFilter.from, dayDate)
+                const isTo = isSameDay(dateFilter.to, dayDate)
 
-            if (isFrom && isTo) {
-              isSelectedDay = true
-            } else if (isFrom) {
-              isRangeStart = true
-            } else if (isTo) {
-              isRangeEnd = true
-            } else if (currentDayTime >= fromTime && currentDayTime <= toTime) {
-              isRangeBetween = true
-            }
-          }
+                if (isFrom && isTo) {
+                  isSelectedDay = true
+                } else if (isFrom) {
+                  isRangeStart = true
+                } else if (isTo) {
+                  isRangeEnd = true
+                } else if (currentDayTime >= fromTime && currentDayTime <= toTime) {
+                  isRangeBetween = true
+                }
+              }
 
-          // Prospective Hover Range Highlighting
-          if (pendingFromDate !== null && hoverDate !== null && dateFilter.mode !== 'RANGE') {
-            let pFrom = pendingFromDate
-            let pTo = hoverDate
-            if (hoverDate < pendingFromDate) {
-              pFrom = hoverDate
-              pTo = pendingFromDate
-            }
-            const pFromTime = new Date(pFrom).setHours(0, 0, 0, 0)
-            const pToTime = new Date(pTo).setHours(23, 59, 59, 999)
+              // Prospective Hover Range Highlighting
+              if (pendingFromDate !== null && hoverDate !== null && dateFilter.mode !== 'RANGE') {
+                let pFrom = pendingFromDate
+                let pTo = hoverDate
+                if (hoverDate < pendingFromDate) {
+                  pFrom = hoverDate
+                  pTo = pendingFromDate
+                }
+                const pFromTime = new Date(pFrom).setHours(0, 0, 0, 0)
+                const pToTime = new Date(pTo).setHours(23, 59, 59, 999)
 
-            if (currentDayTime >= pFromTime && currentDayTime <= pToTime) {
-              if (isSameDay(dayDate, pFrom)) isRangeStart = true
-              else if (isSameDay(dayDate, pTo)) isRangeEnd = true
-              else isRangeBetween = true
-            }
-          }
+                if (currentDayTime >= pFromTime && currentDayTime <= pToTime) {
+                  if (isSameDay(dayDate, pFrom)) isRangeStart = true
+                  else if (isSameDay(dayDate, pTo)) isRangeEnd = true
+                  else isRangeBetween = true
+                }
+              }
 
-          let dayClasses = 'h-7 text-xs flex items-center justify-center font-medium transition-all cursor-pointer '
+              let dayClasses = 'h-7 text-xs flex items-center justify-center font-medium transition-all cursor-pointer ar-num '
 
-          if (isSelectedDay) {
-            dayClasses += 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold rounded-lg shadow-xs'
-          } else if (isRangeStart) {
-            dayClasses += 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold rounded-l-lg shadow-xs'
-          } else if (isRangeEnd) {
-            dayClasses += 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold shadow-xs rounded-r-lg'
-          } else if (isRangeBetween) {
-            dayClasses += 'bg-emerald-500/20 dark:bg-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-bold rounded-none'
-          } else if (isToday) {
-            dayClasses += 'border border-zinc-400 dark:border-zinc-500 text-zinc-900 dark:text-zinc-100 font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg'
-          } else {
-            dayClasses += 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg'
-          }
+              if (isSelectedDay) {
+                dayClasses += 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold rounded-lg shadow-xs'
+              } else if (isRangeStart) {
+                dayClasses += 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold rounded-r-lg shadow-xs'
+              } else if (isRangeEnd) {
+                dayClasses += 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold shadow-xs rounded-l-lg'
+              } else if (isRangeBetween) {
+                dayClasses += 'bg-emerald-500/20 dark:bg-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-bold rounded-none'
+              } else if (isToday) {
+                dayClasses += 'border border-zinc-400 dark:border-zinc-500 text-zinc-900 dark:text-zinc-100 font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg'
+              } else {
+                dayClasses += 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg'
+              }
 
-          return (
-            <button
-              key={`day-${dayNum}`}
-              onClick={(e) => handleSelectDay(dayNum, e)}
-              onMouseEnter={() => setHoverDate(dayDate)}
-              className={dayClasses}
-              title="انقر لتحديد بداية المجال، وانتقل بين الأشهر لتحديد النهاية"
-            >
-              {dayNum}
-            </button>
-          )
-        })}
-      </div>
+              return (
+                <button
+                  key={`day-${dayNum}`}
+                  onClick={(e) => handleSelectDay(dayNum, e)}
+                  onMouseEnter={() => setHoverDate(dayDate)}
+                  className={dayClasses}
+                  title="انقر لتحديد تاريخ، أو استمر بالضغط على Shift لتحديد مجال تواريخ"
+                >
+                  {dayNum}
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
 
       {/* Clear Filter / Active Badge Footer */}
       <AnimatePresence>

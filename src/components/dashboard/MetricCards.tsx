@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, Wallet, CreditCard } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/utils'
 import type { Stats } from '@/types'
@@ -8,73 +8,15 @@ interface MetricCardsProps {
   loading: boolean
 }
 
-interface MetricDef {
-  id: string
-  title: string
-  getValue: (s: Stats) => string
-  trendBadge: string
-  isPositive: boolean
-  trendTitle: string
-  trendSubtext: string
-}
-
-function getMetrics(s: Stats | null): MetricDef[] {
-  if (!s) return []
-  return [
-    {
-      id: 'total-revenue',
-      title: 'Total Revenue',
-      getValue: (st) => formatCurrency(st.total_balance_cents, 'en-US'),
-      trendBadge: '+12.5%',
-      isPositive: true,
-      trendTitle: 'Trending up this month',
-      trendSubtext: 'Visitors for the last 6 months',
-    },
-    {
-      id: 'total-deposits',
-      title: 'Total Deposits',
-      getValue: (st) => formatCurrency(st.total_deposits_cents, 'en-US'),
-      trendBadge: '+8.2%',
-      isPositive: true,
-      trendTitle: 'Down 20% this period',
-      trendSubtext: 'Acquisition needs attention',
-    },
-    {
-      id: 'active-accounts',
-      title: 'Active Accounts',
-      getValue: (st) => new Intl.NumberFormat('en-US').format(st.active_accounts),
-      trendBadge: '+12.5%',
-      isPositive: true,
-      trendTitle: 'Strong user retention',
-      trendSubtext: 'Engagement exceed targets',
-    },
-    {
-      id: 'growth-rate',
-      title: 'Growth Rate',
-      getValue: (st) => {
-        const dep = st.total_deposits_cents
-        const withd = st.total_withdrawals_cents
-        const rate = dep > 0 ? (((dep - withd) / dep) * 100).toFixed(1) : '4.5'
-        return `${rate}%`
-      },
-      trendBadge: '+4.5%',
-      isPositive: true,
-      trendTitle: 'Steady performance increase',
-      trendSubtext: 'Meets growth projections',
-    },
-  ]
-}
-
 function SkeletonCard() {
   return (
-    <Card className="subtle-card rounded-xl p-5 shadow-none border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 animate-pulse">
+    <Card className="subtle-card rounded-2xl p-5 shadow-xs border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 animate-pulse">
       <div className="flex items-center justify-between mb-3">
-        <div className="h-3.5 w-24 rounded bg-zinc-200 dark:bg-zinc-800" />
-        <div className="h-5 w-14 rounded-full bg-zinc-200 dark:bg-zinc-800" />
+        <div className="h-4 w-28 rounded-md bg-zinc-200 dark:bg-zinc-800" />
+        <div className="h-9 w-9 rounded-xl bg-zinc-200 dark:bg-zinc-800" />
       </div>
-      <div className="h-7 w-32 rounded bg-zinc-200 dark:bg-zinc-800 mb-4" />
-      <div className="h-3 w-28 rounded bg-zinc-200 dark:bg-zinc-800 mb-1" />
-      <div className="h-3 w-36 rounded bg-zinc-200/60 dark:bg-zinc-800/60" />
+      <div className="h-8 w-36 rounded-lg bg-zinc-200 dark:bg-zinc-800 mb-4" />
+      <div className="h-4 w-32 rounded-md bg-zinc-200/60 dark:bg-zinc-800/60" />
     </Card>
   )
 }
@@ -82,57 +24,131 @@ function SkeletonCard() {
 export function MetricCards({ stats, loading }: MetricCardsProps) {
   if (loading || !stats) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[0, 1, 2, 3].map((i) => <SkeletonCard key={i} />)}
       </div>
     )
   }
 
-  const metricList = getMetrics(stats)
+  const cashDeposits = stats.cash_deposit_count ?? Math.max(0, stats.deposit_count)
+  const bankDeposits = stats.bank_deposit_count ?? 0
+
+  const cashWithdrawals = stats.cash_withdrawal_count ?? Math.max(0, stats.withdrawal_count)
+  const bankWithdrawals = stats.bank_withdrawal_count ?? 0
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {metricList.map((m) => {
-        const TrendIcon = m.isPositive ? ArrowUpRight : ArrowDownRight
-        const TrendTitleIcon = m.isPositive ? TrendingUp : TrendingDown
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 font-arabic" dir="rtl">
+      {/* CARD 1: TOTAL WITHDRAWALS (مجموع السحوبات) */}
+      <Card
+        id="metric-total-withdrawals"
+        className="subtle-card rounded-2xl p-5 shadow-xs border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/90 hover:border-rose-300 dark:hover:border-rose-800 transition-all group"
+      >
+        <CardContent className="p-0">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
+              مجموع السحوبات
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/80 flex items-center justify-center text-rose-600 dark:text-rose-400 group-hover:scale-105 transition-transform">
+              <ArrowDownLeft className="w-5 h-5" />
+            </div>
+          </div>
 
-        return (
-          <Card
-            key={m.id}
-            id={`metric-${m.id}`}
-            className="subtle-card rounded-xl p-5 shadow-none border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 hover:border-zinc-300 dark:hover:border-zinc-700 transition-all"
-          >
-            <CardContent className="p-0">
-              {/* Header row: Title + Percentage Pill */}
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                  {m.title}
-                </span>
-                <div className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-700 text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">
-                  <TrendIcon className="w-3 h-3 text-zinc-600 dark:text-zinc-400" />
-                  <span>{m.trendBadge}</span>
-                </div>
-              </div>
+          <div className="text-2xl font-black tracking-tight text-rose-600 dark:text-rose-400 mb-3 ar-num">
+            {formatCurrency(stats.total_withdrawals_cents)}
+          </div>
 
-              {/* Main value */}
-              <div className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white mb-3 font-sans">
-                {m.getValue(stats)}
-              </div>
+          <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+            <span>إجمالي المبالغ المسحوبة بالكامل</span>
+          </div>
+        </CardContent>
+      </Card>
 
-              {/* Bottom trend & description */}
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-1 text-xs font-medium text-zinc-800 dark:text-zinc-200">
-                  <span>{m.trendTitle}</span>
-                  <TrendTitleIcon className="w-3 h-3 text-zinc-600 dark:text-zinc-400" />
-                </div>
-                <p className="text-[11px] text-zinc-400 dark:text-zinc-500 font-normal">
-                  {m.trendSubtext}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )
-      })}
+      {/* CARD 2: TOTAL DEPOSITS (مجموع الإيداعات) */}
+      <Card
+        id="metric-total-deposits"
+        className="subtle-card rounded-2xl p-5 shadow-xs border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/90 hover:border-emerald-300 dark:hover:border-emerald-800 transition-all group"
+      >
+        <CardContent className="p-0">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
+              مجموع الإيداعات
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
+              <ArrowUpRight className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="text-2xl font-black tracking-tight text-emerald-600 dark:text-emerald-400 mb-3 ar-num">
+            {formatCurrency(stats.total_deposits_cents)}
+          </div>
+
+          <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+            <span>إجمالي المقبوضات والمودعات بالكامل</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* CARD 3: DEPOSITS BREAKDOWN COUNT (عدد الإيداعات) */}
+      <Card
+        id="metric-deposits-count"
+        className="subtle-card rounded-2xl p-5 shadow-xs border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/90 hover:border-sky-300 dark:hover:border-sky-800 transition-all group"
+      >
+        <CardContent className="p-0">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
+              عدد الإيداعات
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800/80 flex items-center justify-center text-sky-600 dark:text-sky-400 group-hover:scale-105 transition-transform">
+              <Wallet className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white mb-3 ar-num">
+            {stats.deposit_count} <span className="text-xs font-bold text-zinc-400">معاملة</span>
+          </div>
+
+          {/* Dual breakdown badges */}
+          <div className="flex items-center gap-2 pt-0.5 text-xs font-bold">
+            <span className="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800/60 ar-num">
+              نقداً: {cashDeposits}
+            </span>
+            <span className="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 ar-num">
+              مصرفي: {bankDeposits}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* CARD 4: WITHDRAWALS BREAKDOWN COUNT (عدد السحوبات) */}
+      <Card
+        id="metric-withdrawals-count"
+        className="subtle-card rounded-2xl p-5 shadow-xs border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/90 hover:border-amber-300 dark:hover:border-amber-800 transition-all group"
+      >
+        <CardContent className="p-0">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
+              عدد السحوبات
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/80 flex items-center justify-center text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform">
+              <CreditCard className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white mb-3 ar-num">
+            {stats.withdrawal_count} <span className="text-xs font-bold text-zinc-400">معاملة</span>
+          </div>
+
+          {/* Dual breakdown badges */}
+          <div className="flex items-center gap-2 pt-0.5 text-xs font-bold">
+            <span className="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 ar-num">
+              نقداً: {cashWithdrawals}
+            </span>
+            <span className="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 ar-num">
+              مصرفي: {bankWithdrawals}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

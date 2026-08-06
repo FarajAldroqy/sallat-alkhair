@@ -1,32 +1,48 @@
 // @see - https://www.electron.build/configuration/configuration
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "YourAppID",
+  "appId": "ly.salla.finance",
   "asar": true,
-  "productName": "YourAppName",
+  "productName": "منظومة سلة الخير للمعاملات المالية",
+  "npmRebuild": true,
+  "icon": "public/icon.png",
   "directories": {
     "output": "release/${version}"
   },
   "files": [
-    "dist",
-    "dist-electron"
+    "dist/**/*",
+    "dist-electron/**/*",
+    "node_modules/**/*",
+    "public/**/*",
+    "package.json"
   ],
   "mac": {
+    "icon": "public/icon.png",
     "target": [
-      "dmg"
+      {
+        "target": "dmg",
+        "arch": ["arm64", "x64"]
+      },
+      {
+        "target": "zip",
+        "arch": ["arm64", "x64"]
+      }
     ],
-    "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
+    "artifactName": "${productName}-Mac-${version}-${arch}.${ext}"
   },
   "win": {
+    "icon": "public/icon.png",
     "target": [
       {
         "target": "nsis",
-        "arch": [
-          "x64"
-        ]
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable",
+        "arch": ["x64"]
       }
     ],
-    "artifactName": "${productName}-Windows-${version}-Setup.${ext}"
+    "artifactName": "${productName}-Windows-${version}-${target}.${ext}"
   },
   "nsis": {
     "oneClick": false,

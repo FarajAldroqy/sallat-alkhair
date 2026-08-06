@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { formatCurrency, getDateFilterText, filterTransactionsByDate } from '@/lib/utils'
 import type { Transaction, DateFilter } from '@/types'
 import { usePermission } from '@/hooks/usePermission'
+import logoImg from '@/assets/logo.png'
 
 interface EntityLedgerModalProps {
   open: boolean
@@ -146,7 +147,7 @@ export function EntityLedgerModal({
           <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-4">
             <div className="flex items-center gap-3">
               <img
-                src="/logo.png"
+                src={logoImg}
                 alt="شعار سلة الخير"
                 className="w-14 h-14 object-contain"
                 onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
@@ -226,19 +227,9 @@ export function EntityLedgerModal({
             </tbody>
           </table>
 
-          {/* Official Signature and Stamp Box */}
-          <div className="mt-12 flex justify-between items-end text-xs font-bold text-black border-t border-gray-400 pt-6">
-            <div>
-              <p>توقيع أمين الخزينة: ...........................................</p>
-              <p className="mt-3">التاريخ والاعتماد: ...........................................</p>
-            </div>
-            <div className="text-center border-2 border-black rounded-lg p-4 w-44">
-              <p className="text-[10px] text-gray-600">مكان الختم الرسمي</p>
-            </div>
-            <div>
-              <p>توقيع وإقرار الجهة: ...........................................</p>
-              <p className="mt-3">التاريخ والاعتماد: ...........................................</p>
-            </div>
+          {/* Official Signature Box */}
+          <div className="mt-12 flex justify-between items-end text-xs font-bold text-black border-t border-gray-400 pt-6" dir="rtl">
+            <div>التوقيع: .........</div>
           </div>
         </div>
       )}

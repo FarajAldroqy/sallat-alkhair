@@ -8,6 +8,7 @@ import { formatCurrency, getDateFilterText } from '@/lib/utils'
 import type { DateFilter } from '@/types'
 import { usePermission } from '@/hooks/usePermission'
 import { logUserAction } from '@/lib/auditLogger'
+import logoImg from '@/assets/logo.png'
 
 export type DrawerMode = 'ADD_ENTITY' | 'PRINT_REPORT' | 'ADVANCED_FILTER' | null
 
@@ -200,7 +201,7 @@ export function TreasuryDrawer({
           <div className="flex items-center justify-between border-b-2 border-zinc-900 pb-4 mb-4">
             <div className="flex items-center gap-3">
               <img
-                src="/logo.png"
+                src={logoImg}
                 alt="شعار سلة الخير"
                 className="w-12 h-12 object-contain"
                 onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
@@ -273,8 +274,7 @@ export function TreasuryDrawer({
 
           {/* Signatures Footer */}
           <div className="pt-6 border-t-2 border-zinc-900 flex justify-between text-xs font-bold text-zinc-800 mt-8" dir="rtl">
-            <div>توقيع موظف الخزينة: ................................</div>
-            <div>اعتماد الإدارة المالية: ................................</div>
+            <div>التوقيع: .........</div>
           </div>
         </div>
       )}
@@ -483,7 +483,7 @@ export function TreasuryDrawer({
                       <div className="flex items-center justify-between border-b pb-3 border-zinc-200">
                         <div className="flex items-center gap-2.5">
                           <img
-                            src="/logo.png"
+                            src={logoImg}
                             alt="شعار سلة الخير"
                             className="w-10 h-10 object-contain"
                             onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}

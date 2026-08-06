@@ -7,6 +7,8 @@ import { formatCurrency, formatDate, getDateFilterText } from '@/lib/utils'
 import type { Transaction, Stats, DateFilter } from '@/types'
 import { usePermission } from '@/hooks/usePermission'
 import { logUserAction } from '@/lib/auditLogger'
+import logoImg from '@/assets/logo.png'
+import eagleImg from '@/assets/eagle.png'
 
 interface ColumnToggles {
   clientName: boolean
@@ -151,8 +153,8 @@ export function TransactionsReportModal({
             <p className="text-xs text-zinc-500 font-bold mt-0.5">{filterText}</p>
           </div>
           <div className="flex items-center gap-3">
-            <img src="/eagle.png" alt="شعار النسر" className="w-14 h-14 object-contain mix-blend-multiply" />
-            <img src="/logo.png" alt="شعار سلة الخير" className="w-20 h-20 object-contain" />
+            <img src={eagleImg} alt="شعار النسر" className="w-14 h-14 object-contain mix-blend-multiply" />
+            <img src={logoImg} alt="شعار سلة الخير" className="w-20 h-20 object-contain" />
           </div>
         </div>
 
@@ -248,8 +250,7 @@ export function TransactionsReportModal({
 
         {/* Printable Footer */}
         <div className="pt-6 border-t-2 border-zinc-900 flex justify-between text-xs font-bold text-zinc-800" dir="rtl">
-          <div>توقيع موظف المنظومة: ................................</div>
-          <div>اعتماد الإدارة المالية: ................................</div>
+          <div>التوقيع: .........</div>
         </div>
       </div>
 
@@ -435,8 +436,8 @@ export function TransactionsReportModal({
                     <p className="text-[11px] text-zinc-500 font-bold mt-0.5">{filterText}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <img src="/eagle.png" alt="شعار النسر" className="w-12 h-12 object-contain mix-blend-multiply" />
-                    <img src="/logo.png" alt="شعار سلة الخير" className="w-16 h-16 object-contain" />
+                    <img src={eagleImg} alt="شعار النسر" className="w-12 h-12 object-contain mix-blend-multiply" />
+                    <img src={logoImg} alt="شعار سلة الخير" className="w-16 h-16 object-contain" />
                   </div>
                 </div>
 

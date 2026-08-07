@@ -1,11 +1,13 @@
 {
-  "name": "sallapp---template-react",
+  "name": "sallat-alkhair",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "start": "vite",
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",
+    "make": "npm run build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },

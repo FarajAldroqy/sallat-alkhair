@@ -200,7 +200,7 @@ export function TreasuryDrawer({
           <div className="flex items-center justify-between border-b-2 border-zinc-900 pb-4 mb-4">
             <div className="flex items-center gap-3">
               <img
-                src="/logo.png"
+                src="./logo.png"
                 alt="شعار سلة الخير"
                 className="w-12 h-12 object-contain"
                 onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
@@ -483,7 +483,7 @@ export function TreasuryDrawer({
                       <div className="flex items-center justify-between border-b pb-3 border-zinc-200">
                         <div className="flex items-center gap-2.5">
                           <img
-                            src="/logo.png"
+                            src="./logo.png"
                             alt="شعار سلة الخير"
                             className="w-10 h-10 object-contain"
                             onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}

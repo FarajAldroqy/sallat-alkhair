@@ -68,7 +68,7 @@ export function Sidebar({
         <div className="flex items-center gap-1 font-arabic">
           <div className="relative w-14 h-14 bg-white dark:bg-zinc-300 rounded-full border-2 border-black dark:border-white shadow-md flex items-center justify-center shrink-0 overflow-hidden p-0">
             <img
-              src="/logo.png"
+              src="./logo.png"
               alt="شعار سلة الخير"
               className="w-full h-full object-cover scale-[1.12]"
               style={{ imageRendering: 'crisp-edges' }}

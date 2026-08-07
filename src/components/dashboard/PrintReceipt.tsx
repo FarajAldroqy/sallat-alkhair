@@ -73,7 +73,7 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
       {isSallatAlkhair && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
           <img
-            src="/logo.png"
+            src="./logo.png"
             alt="العلامة المائية"
             className="w-[75%] h-[75%] object-contain opacity-10 dark:opacity-15 mix-blend-multiply"
           />
@@ -99,13 +99,13 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
           {/* Top Left (RTL): Enlarged Eagle & System Logos alone */}
           <div className="flex items-center gap-3 shrink-0">
             <img
-              src="/eagle.png"
+              src="./eagle.png"
               alt="شعار النسر"
               className="w-16 h-16 sm:w-18 sm:h-18 object-contain mix-blend-multiply"
               onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
             />
             <img
-              src="/logo.png"
+              src="./logo.png"
               alt="شعار سلة الخير"
               className="w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-sm"
               onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}

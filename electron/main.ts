@@ -277,7 +277,7 @@ function createWindow() {
     minHeight: 700,
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#ffffff',
-    icon: path.join(process.env.VITE_PUBLIC!, 'electron-vite.svg'),
+    icon: path.join(process.env.VITE_PUBLIC!, 'logo.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       contextIsolation: true,

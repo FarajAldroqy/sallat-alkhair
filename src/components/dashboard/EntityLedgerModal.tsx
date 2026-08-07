@@ -146,7 +146,7 @@ export function EntityLedgerModal({
           <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-4">
             <div className="flex items-center gap-3">
               <img
-                src="/logo.png"
+                src="./logo.png"
                 alt="شعار سلة الخير"
                 className="w-14 h-14 object-contain"
                 onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}

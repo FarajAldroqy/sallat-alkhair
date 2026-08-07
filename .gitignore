@@ -24,3 +24,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+release/
+dist/
+dist-electron/
+node_modules/

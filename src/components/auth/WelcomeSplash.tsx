@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { ShoppingBag, Sparkles } from 'lucide-react'
 import { playLoginSuccessSound } from '@/lib/soundEffects'
+import logoImg from '@/assets/logo.png'
 
 interface WelcomeSplashProps {
   displayName: string
@@ -32,8 +33,12 @@ export function WelcomeSplash({ displayName, onComplete }: WelcomeSplashProps) {
       >
         {/* Emblem Container */}
         <div className="relative">
-          <div className="w-20 h-20 rounded-3xl bg-emerald-600 dark:bg-emerald-500 text-white flex items-center justify-center shadow-xl shadow-emerald-500/20 border border-emerald-400/30">
-            <ShoppingBag className="w-10 h-10" />
+          <div className="w-20 h-20 rounded-3xl bg-white dark:bg-zinc-300 flex items-center justify-center shadow-xl shadow-emerald-500/20 border border-emerald-400/30 overflow-hidden p-1">
+            <img
+              src={logoImg}
+              alt="شعار سلة الخير"
+              className="w-full h-full object-cover scale-[1.1]"
+            />
           </div>
           <motion.div
             initial={{ scale: 0 }}

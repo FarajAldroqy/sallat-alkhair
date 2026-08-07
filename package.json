@@ -1,15 +1,32 @@
 {
+<<<<<<< HEAD
   "name": "sallat-alkhair",
+=======
+  "name": "salla-finance-app",
+  "productName": "منظومة سلة الخير للمعاملات المالية",
+  "description": "منظومة سلة الخير لإدارة السيولة والمعاملات المالية والخزينة",
+  "author": "سلة الخير",
+>>>>>>> origin/main
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "start": "vite",
     "dev": "vite",
+<<<<<<< HEAD
     "build": "tsc && vite build && electron-builder",
     "make": "npm run build",
+=======
+    "build:web": "vite build",
+    "build:mac": "vite build && electron-builder --mac",
+    "build:win": "vite build && electron-builder --win",
+    "build": "vite build && electron-builder",
+>>>>>>> origin/main
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.2.6",
@@ -31,6 +48,7 @@
     "postcss": "^8.5.25",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-is": "^18.2.0",
     "recharts": "^3.10.1",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^3.4.19"

@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { Transaction } from '@/types'
+import logoImg from '@/assets/logo.png'
+import eagleImg from '@/assets/eagle.png'
 
 interface PrintReceiptProps {
   transaction: Transaction | null
@@ -73,7 +75,11 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
       {isSallatAlkhair && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
           <img
+<<<<<<< HEAD
             src="./logo.png"
+=======
+            src={logoImg}
+>>>>>>> origin/main
             alt="العلامة المائية"
             className="w-[75%] h-[75%] object-contain opacity-10 dark:opacity-15 mix-blend-multiply"
           />
@@ -99,13 +105,21 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
           {/* Top Left (RTL): Enlarged Eagle & System Logos alone */}
           <div className="flex items-center gap-3 shrink-0">
             <img
+<<<<<<< HEAD
               src="./eagle.png"
+=======
+              src={eagleImg}
+>>>>>>> origin/main
               alt="شعار النسر"
               className="w-16 h-16 sm:w-18 sm:h-18 object-contain mix-blend-multiply"
               onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
             />
             <img
+<<<<<<< HEAD
               src="./logo.png"
+=======
+              src={logoImg}
+>>>>>>> origin/main
               alt="شعار سلة الخير"
               className="w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-sm"
               onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
@@ -155,10 +169,9 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
         </div>
       </div>
 
-      {/* Signature Area Footer (Employee Signature) */}
+      {/* Signature Area Footer */}
       <div className="flex items-center justify-start text-xs sm:text-sm font-black text-zinc-950 mt-auto pt-1 relative z-10">
-        <span>توقيع الموظف: </span>
-        <span className="font-mono text-zinc-400 mr-2 text-base">............................................</span>
+        <span>التوقيع: .........</span>
       </div>
     </div>
   )

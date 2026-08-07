@@ -257,6 +257,7 @@ export function initAutoBackupListener() {
   }
 
   window.addEventListener('beforeunload', handleExit)
+  window.addEventListener('blur', handleExit)
 
   // Also create a baseline backup if no backups exist yet
   const existing = getRollingBackups()

@@ -3,12 +3,22 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { KeyRound, Lock, User, AlertCircle, CheckCircle2, X } from 'lucide-react'
 
 import type { UserAccount } from '@/types'
+import logoImg from '@/assets/logo.png'
+import eagleImg from '@/assets/eagle.png'
+import bg1 from '@/assets/bg1.jpg'
+import bg2 from '@/assets/bg2.jpg'
+import bg3 from '@/assets/bg3.jpg'
+import bg4 from '@/assets/bg4.jpg'
 
 interface LoginPageProps {
   onLoginSuccess: () => void
 }
 
+<<<<<<< HEAD
 const BG_IMAGES = ['./bg1.jpg', './bg2.jpg', './bg3.jpg', './bg4.jpg']
+=======
+const BG_IMAGES = [bg1, bg2, bg3, bg4]
+>>>>>>> origin/main
 
 const DEFAULT_USER: UserAccount = {
   id: '1',
@@ -31,7 +41,11 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
   const [recoverySuccess, setRecoverySuccess] = useState('')
 
   // Pick random background on mount
+<<<<<<< HEAD
   const [bgImage, setBgImage] = useState('./bg1.jpg')
+=======
+  const [bgImage, setBgImage] = useState(bg1)
+>>>>>>> origin/main
   useEffect(() => {
     const randomBg = BG_IMAGES[Math.floor(Math.random() * BG_IMAGES.length)]
     setBgImage(randomBg)
@@ -154,7 +168,11 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
             <div className="flex items-center justify-center gap-4 mb-6">
               {/* Eagle Emblem */}
               <img
+<<<<<<< HEAD
                 src="./eagle.png"
+=======
+                src={eagleImg}
+>>>>>>> origin/main
                 alt="الشعار الوطني"
                 className="w-16 h-16 object-contain mix-blend-multiply dark:brightness-125 dark:contrast-125 filter drop-shadow-md"
                 onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
@@ -163,7 +181,11 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
               {/* System Circular Logo */}
               <div className="relative w-14 h-14 bg-white dark:bg-zinc-300 rounded-full border-2 border-black dark:border-white shadow-md flex items-center justify-center shrink-0 overflow-hidden p-0">
                 <img
+<<<<<<< HEAD
                   src="./logo.png"
+=======
+                  src={logoImg}
+>>>>>>> origin/main
                   alt="شعار سلة الخير"
                   className="w-full h-full object-cover scale-[1.12]"
                   style={{ imageRendering: 'crisp-edges' }}

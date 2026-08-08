@@ -1,27 +1,19 @@
 {
-<<<<<<< HEAD
   "name": "sallat-alkhair",
-=======
-  "name": "salla-finance-app",
   "productName": "منظومة سلة الخير للمعاملات المالية",
   "description": "منظومة سلة الخير لإدارة السيولة والمعاملات المالية والخزينة",
   "author": "سلة الخير",
->>>>>>> origin/main
   "private": true,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
     "start": "vite",
     "dev": "vite",
-<<<<<<< HEAD
-    "build": "tsc && vite build && electron-builder",
-    "make": "npm run build",
-=======
     "build:web": "vite build",
     "build:mac": "vite build && electron-builder --mac",
     "build:win": "vite build && electron-builder --win",
-    "build": "vite build && electron-builder",
->>>>>>> origin/main
+    "build": "tsc && vite build && electron-builder",
+    "make": "npm run build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },

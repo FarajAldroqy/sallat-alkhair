@@ -48,6 +48,12 @@ function initDatabase() {
     )
   `)
 
+  // Performance Indexes
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_tx_list ON transactions(is_archived, is_pinned DESC, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_tx_search ON transactions(client_name, type);
+  `)
+
   // Migration: check if columns exist for existing database
   const tableInfo = db.pragma('table_info(transactions)') as { name: string }[]
   const colNames = new Set(tableInfo.map((col) => col.name))
@@ -61,41 +67,21 @@ function initDatabase() {
   if (!colNames.has('is_archived')) {
     try { db.exec(`ALTER TABLE transactions ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`) } catch {}
   }
-
-  // Seed demo data if empty
-  const count = db.prepare('SELECT COUNT(*) as c FROM transactions').get() as { c: number }
-  if (count.c === 0) {
-    const seed = db.prepare(`
-      INSERT INTO transactions (client_name, type, amount_cents, payment_method, status, is_pinned, is_archived, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-    const seedData = [
-      ['الفندق',                  'WITHDRAWAL', 1000000000, 'نقداً',       'COMPLETED', 1, 0, '2026-08-02 10:04:00'],
-      ['ffff',                   'DEPOSIT',    5000000,    'نقداً',       'COMPLETED', 0, 0, '2026-08-02 09:51:00'],
-      ['الفندق',                  'DEPOSIT',    500000,     'تحويل مصرفي', 'COMPLETED', 0, 0, '2026-08-02 08:55:00'],
-      ['شركة المدار الجديد',       'DEPOSIT',    1250000,    'تحويل مصرفي', 'COMPLETED', 0, 0, '2026-07-28 09:15:00'],
-      ['مصرف ليبيا المركزي',       'DEPOSIT',    3500000,    'تحويل مصرفي', 'COMPLETED', 0, 0, '2026-07-28 11:30:00'],
-      ['شركة ليبيانا للهاتف المحمول', 'WITHDRAWAL', 500000,     'نقداً',       'COMPLETED', 0, 0, '2026-07-29 08:45:00'],
-      ['شركة الشرارة للخدمات النفطية','DEPOSIT',  750000,     'بطاقة',       'COMPLETED', 0, 0, '2026-07-29 14:20:00'],
-      ['مصرف الجمهورية - طرابلس',  'WITHDRAWAL', 200000,     'نقداً',       'COMPLETED', 0, 0, '2026-07-30 10:05:00'],
-      ['مؤسسة البناء والتعمير',    'DEPOSIT',    2000000,    'تحويل مصرفي', 'COMPLETED', 0, 0, '2026-07-30 15:40:00'],
-      ['مطبعة الاستقلال بنغازي',  'DEPOSIT',    450000,     'بطاقة',       'COMPLETED', 0, 0, '2026-07-31 09:00:00'],
-      ['شركة السهم للنقل العام',   'WITHDRAWAL', 125000,     'نقداً',       'COMPLETED', 0, 0, '2026-07-31 12:30:00'],
-      ['شركة الخليج العربي للنفت', 'DEPOSIT',    4500000,    'تحويل مصرفي', 'COMPLETED', 0, 0, '2026-08-01 08:15:00'],
-      ['مصرف التجارة والتنمية',    'WITHDRAWAL', 600000,     'تحويل مصرفي', 'COMPLETED', 0, 0, '2026-08-01 11:00:00'],
-      ['شركة تاسيلي لتقنية المعلومات','DEPOSIT',  900000,     'بطاقة',       'COMPLETED', 0, 0, '2026-08-01 14:45:00'],
-      ['حصة عبدالعزيز الفيفي',     'WITHDRAWAL', 350000,     'نقداً',       'COMPLETED', 0, 0, '2026-08-01 16:30:00'],
-    ]
-    const insertMany = db.transaction((rows: typeof seedData) => {
-      for (const row of rows) seed.run(...row)
-    })
-    insertMany(seedData)
-  }
 }
 
 // ─── IPC Handlers ─────────────────────────────────────────────────────────────
 
 function registerIpcHandlers() {
+  // POST /reset-database – clear all transactions and reset database
+  ipcMain.handle('db:reset-database', () => {
+    try {
+      db.exec('DELETE FROM transactions')
+      db.exec('VACUUM')
+      return { success: true }
+    } catch (err: any) {
+      return { success: false, error: err.message }
+    }
+  })
   // GET /transactions – paginated + searchable + sorted by is_pinned DESC
   ipcMain.handle('db:get-transactions', (_event, params: {
     page?: number
@@ -113,8 +99,9 @@ function registerIpcHandlers() {
     const args: (string | number)[] = []
 
     if (search) {
-      whereClause += ' AND client_name LIKE ?'
-      args.push(`%${search}%`)
+      const sanitized = search.replace(/[%_]/g, '\\$&')
+      whereClause += " AND client_name LIKE ? ESCAPE '\\'"
+      args.push(`%${sanitized}%`)
     }
     if (type !== 'ALL') {
       whereClause += ' AND type = ?'
@@ -277,18 +264,17 @@ function createWindow() {
     minWidth: 1100,
     minHeight: 700,
     titleBarStyle: 'hiddenInset',
-    backgroundColor: '#ffffff',
-<<<<<<< HEAD
+    autoHideMenuBar: true,
     icon: path.join(process.env.VITE_PUBLIC!, 'logo.png'),
-=======
-    icon: path.join(process.env.VITE_PUBLIC!, 'icon.png'),
->>>>>>> origin/main
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       contextIsolation: true,
       nodeIntegration: false,
     },
   })
+
+  win.setMenu(null)
+  win.center()
 
   win.webContents.on('did-finish-load', () => {
     win?.webContents.send('main-process-message', (new Date()).toLocaleString())

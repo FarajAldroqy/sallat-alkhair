@@ -153,13 +153,8 @@ export function TransactionsReportModal({
             <p className="text-xs text-zinc-500 font-bold mt-0.5">{filterText}</p>
           </div>
           <div className="flex items-center gap-3">
-<<<<<<< HEAD
-            <img src="./eagle.png" alt="شعار النسر" className="w-14 h-14 object-contain mix-blend-multiply" />
-            <img src="./logo.png" alt="شعار سلة الخير" className="w-20 h-20 object-contain" />
-=======
             <img src={eagleImg} alt="شعار النسر" className="w-14 h-14 object-contain mix-blend-multiply" />
             <img src={logoImg} alt="شعار سلة الخير" className="w-20 h-20 object-contain" />
->>>>>>> origin/main
           </div>
         </div>
 
@@ -441,13 +436,8 @@ export function TransactionsReportModal({
                     <p className="text-[11px] text-zinc-500 font-bold mt-0.5">{filterText}</p>
                   </div>
                   <div className="flex items-center gap-3">
-<<<<<<< HEAD
-                    <img src="./eagle.png" alt="شعار النسر" className="w-12 h-12 object-contain mix-blend-multiply" />
-                    <img src="./logo.png" alt="شعار سلة الخير" className="w-16 h-16 object-contain" />
-=======
                     <img src={eagleImg} alt="شعار النسر" className="w-12 h-12 object-contain mix-blend-multiply" />
                     <img src={logoImg} alt="شعار سلة الخير" className="w-16 h-16 object-contain" />
->>>>>>> origin/main
                   </div>
                 </div>
 

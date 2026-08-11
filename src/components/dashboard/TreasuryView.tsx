@@ -573,7 +573,7 @@ export function TreasuryView({ dateFilter, archivedTreasuryRows = [], onArchiveE
       if (pinA !== pinB) return pinB - pinA
       return 0
     })
-  }, [filteredTransactions, pinnedEntities, advancedFilter, customEntities])
+  }, [filteredTransactions, pinnedEntities, advancedFilter, customEntities, archivedTreasuryRows])
 
   // Filtered entity balances based on search query
   const filteredEntities = useMemo(() => {

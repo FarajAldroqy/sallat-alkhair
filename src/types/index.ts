@@ -10,6 +10,7 @@ export interface Transaction {
   status?: 'COMPLETED' | 'PENDING' | 'FAILED' | 'PROCESSING'
   is_pinned?: number
   is_archived?: number
+  is_deleted?: number
   created_at: string
 }
 
@@ -46,6 +47,7 @@ export interface GetTransactionsParams {
   pageSize?: number
   search?: string
   type?: 'DEPOSIT' | 'WITHDRAWAL' | 'ALL'
+  status?: 'ACTIVE' | 'ARCHIVED' | 'TRASH' | 'ALL_NON_DELETED'
 }
 
 export interface ChartDataPoint {

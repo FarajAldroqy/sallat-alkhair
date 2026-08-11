@@ -52,6 +52,7 @@ function initDatabase() {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_tx_list ON transactions(is_archived, is_pinned DESC, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_tx_search ON transactions(client_name, type);
+    CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(is_deleted, is_archived, created_at DESC);
   `)
 
   // Migration: check if columns exist for existing database
@@ -66,6 +67,9 @@ function initDatabase() {
   }
   if (!colNames.has('is_archived')) {
     try { db.exec(`ALTER TABLE transactions ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`) } catch {}
+  }
+  if (!colNames.has('is_deleted')) {
+    try { db.exec(`ALTER TABLE transactions ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0`) } catch {}
   }
 }
 
@@ -82,20 +86,33 @@ function registerIpcHandlers() {
       return { success: false, error: err.message }
     }
   })
+
   // GET /transactions – paginated + searchable + sorted by is_pinned DESC
   ipcMain.handle('db:get-transactions', (_event, params: {
     page?: number
     pageSize?: number
     search?: string
     type?: string
+    status?: 'ACTIVE' | 'ARCHIVED' | 'TRASH' | 'ALL_NON_DELETED'
   }) => {
     const page = params?.page ?? 1
     const pageSize = params?.pageSize ?? 10
     const search = params?.search ?? ''
     const type = params?.type ?? 'ALL'
+    const status = params?.status ?? 'ACTIVE'
     const offset = (page - 1) * pageSize
 
-    let whereClause = 'WHERE is_archived = 0'
+    let whereClause = 'WHERE 1=1'
+    if (status === 'ACTIVE') {
+      whereClause += ' AND is_deleted = 0 AND is_archived = 0'
+    } else if (status === 'ARCHIVED') {
+      whereClause += ' AND is_deleted = 0 AND is_archived = 1'
+    } else if (status === 'TRASH') {
+      whereClause += ' AND is_deleted = 1'
+    } else if (status === 'ALL_NON_DELETED') {
+      whereClause += ' AND is_deleted = 0'
+    }
+
     const args: (string | number)[] = []
 
     if (search) {
@@ -130,8 +147,8 @@ function registerIpcHandlers() {
     const paymentMethod = payload.payment_method || 'نقداً'
     const status = payload.status || 'COMPLETED'
     const stmt = db.prepare(`
-      INSERT INTO transactions (client_name, type, amount_cents, payment_method, status, is_pinned, is_archived)
-      VALUES (?, ?, ?, ?, ?, 0, 0)
+      INSERT INTO transactions (client_name, type, amount_cents, payment_method, status, is_pinned, is_archived, is_deleted)
+      VALUES (?, ?, ?, ?, ?, 0, 0, 0)
     `)
     const result = stmt.run(
       payload.client_name,
@@ -151,9 +168,19 @@ function registerIpcHandlers() {
     return { success: true, is_pinned: newStatus }
   })
 
-  // DELETE /transactions – delete transaction
-  ipcMain.handle('db:delete-transaction', (_event, id: number) => {
-    db.prepare('DELETE FROM transactions WHERE id = ?').run(id)
+  // DELETE /transactions – soft delete or permanent delete
+  ipcMain.handle('db:delete-transaction', (_event, id: number, permanent?: boolean) => {
+    if (permanent) {
+      db.prepare('DELETE FROM transactions WHERE id = ?').run(id)
+    } else {
+      db.prepare('UPDATE transactions SET is_deleted = 1 WHERE id = ?').run(id)
+    }
+    return { success: true }
+  })
+
+  // POST /restore-transaction – restore soft deleted transaction
+  ipcMain.handle('db:restore-transaction', (_event, id: number) => {
+    db.prepare('UPDATE transactions SET is_deleted = 0, is_archived = 0 WHERE id = ?').run(id)
     return { success: true }
   })
 
@@ -161,8 +188,24 @@ function registerIpcHandlers() {
   ipcMain.handle('db:archive-transaction', (_event, id: number) => {
     const current = db.prepare('SELECT is_archived FROM transactions WHERE id = ?').get(id) as { is_archived: number } | undefined
     const newStatus = current && current.is_archived === 1 ? 0 : 1
-    db.prepare('UPDATE transactions SET is_archived = ? WHERE id = ?').run(newStatus, id)
+    db.prepare('UPDATE transactions SET is_archived = ? WHERE id = ? AND is_deleted = 0').run(newStatus, id)
     return { success: true, is_archived: newStatus }
+  })
+
+  // POST /delete-entity-transactions – delete all entity transactions
+  ipcMain.handle('db:delete-entity-transactions', (_event, clientName: string, permanent?: boolean) => {
+    if (permanent) {
+      db.prepare('DELETE FROM transactions WHERE client_name = ?').run(clientName)
+    } else {
+      db.prepare('UPDATE transactions SET is_deleted = 1 WHERE client_name = ?').run(clientName)
+    }
+    return { success: true }
+  })
+
+  // POST /restore-entity-transactions – restore all entity transactions
+  ipcMain.handle('db:restore-entity-transactions', (_event, clientName: string) => {
+    db.prepare('UPDATE transactions SET is_deleted = 0, is_archived = 0 WHERE client_name = ?').run(clientName)
+    return { success: true }
   })
 
   // POST /update-entity-name – rename entity client_name across all transactions
@@ -174,20 +217,20 @@ function registerIpcHandlers() {
     return { success: true, updatedCount: res.changes }
   })
 
-  // GET /stats – aggregated balances
+  // GET /stats – aggregated balances across all non-deleted transactions (active + archived)
   ipcMain.handle('db:get-stats', () => {
     const deposits = db.prepare(
       `SELECT COALESCE(SUM(amount_cents),0) as total, COUNT(*) as cnt
-       FROM transactions WHERE type='DEPOSIT' AND is_archived=0`
+       FROM transactions WHERE type='DEPOSIT' AND is_deleted=0`
     ).get() as { total: number; cnt: number }
 
     const withdrawals = db.prepare(
       `SELECT COALESCE(SUM(amount_cents),0) as total, COUNT(*) as cnt
-       FROM transactions WHERE type='WITHDRAWAL' AND is_archived=0`
+       FROM transactions WHERE type='WITHDRAWAL' AND is_deleted=0`
     ).get() as { total: number; cnt: number }
 
     const activeAccounts = (db.prepare(
-      `SELECT COUNT(DISTINCT client_name) as cnt FROM transactions WHERE is_archived=0`
+      `SELECT COUNT(DISTINCT client_name) as cnt FROM transactions WHERE is_deleted=0`
     ).get() as { cnt: number }).cnt
 
     return {
@@ -211,7 +254,7 @@ function registerIpcHandlers() {
         COALESCE(SUM(CASE WHEN type = 'DEPOSIT' THEN amount_cents ELSE 0 END), 0) as deposits_cents,
         COALESCE(SUM(CASE WHEN type = 'WITHDRAWAL' THEN amount_cents ELSE 0 END), 0) as withdrawals_cents
       FROM transactions
-      WHERE created_at >= date('now', '-' || ? || ' days') AND is_archived = 0
+      WHERE created_at >= date('now', '-' || ? || ' days') AND is_deleted = 0
       GROUP BY strftime('%Y-%m-%d', created_at)
       ORDER BY date_str ASC
     `).all(days) as { date_str: string; deposits_cents: number; withdrawals_cents: number }[]

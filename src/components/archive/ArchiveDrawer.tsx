@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import {
-  X, Archive, RotateCcw, Trash2, LayoutDashboard, Coins,
+  X, Archive, RotateCcw, Trash2, LayoutDashboard, Coins, CheckSquare, Square,
 } from 'lucide-react'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import { formatCurrency } from '@/lib/utils'
@@ -8,6 +8,7 @@ import type { Transaction } from '@/types'
 import { DeleteConfirmModal } from '../dashboard/DeleteConfirmModal'
 import { usePermission } from '@/hooks/usePermission'
 import { logUserAction } from '@/lib/auditLogger'
+import { playClickSound, playDeleteSound } from '@/lib/soundEffects'
 
 export interface EntityBalance {
   name: string
@@ -46,15 +47,26 @@ export function ArchiveDrawer({
   const [swipedDashId, setSwipedDashId] = useState<number | null>(null)
   const [swipedTreasuryName, setSwipedTreasuryName] = useState<string | null>(null)
 
+  // Batch Selection States
+  const [selectedDashIds, setSelectedDashIds] = useState<number[]>([])
+  const [selectedTreasuryNames, setSelectedTreasuryNames] = useState<string[]>([])
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false)
+
   // Delete confirm modal state
   const [pendingDelete, setPendingDelete] = useState<{
-    type: 'DASHBOARD' | 'TREASURY'
-    idOrName: number | string
+    type: 'DASHBOARD' | 'TREASURY' | 'BATCH_DASHBOARD' | 'BATCH_TREASURY'
+    idOrName?: number | string
   } | null>(null)
 
   const drawerRef = useRef<HTMLDivElement>(null)
 
   const totalArchivedCount = archivedDashboardRows.length + archivedTreasuryRows.length
+
+  // Clear selections when switching tabs or closing
+  useEffect(() => {
+    setSelectedDashIds([])
+    setSelectedTreasuryNames([])
+  }, [activeTab, open])
 
   // Automatically close drawer if all items are restored or deleted
   useEffect(() => {
@@ -76,6 +88,77 @@ export function ArchiveDrawer({
 
   if (!open) return null
 
+  // Checkbox Select All Helpers
+  const isAllDashSelected =
+    archivedDashboardRows.length > 0 && selectedDashIds.length === archivedDashboardRows.length
+
+  const handleToggleSelectAllDash = () => {
+    playClickSound()
+    if (isAllDashSelected) {
+      setSelectedDashIds([])
+    } else {
+      setSelectedDashIds(archivedDashboardRows.map((r) => r.id))
+    }
+  }
+
+  const handleToggleSelectDashRow = (id: number) => {
+    playClickSound()
+    setSelectedDashIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    )
+  }
+
+  const isAllTreasurySelected =
+    archivedTreasuryRows.length > 0 && selectedTreasuryNames.length === archivedTreasuryRows.length
+
+  const handleToggleSelectAllTreasury = () => {
+    playClickSound()
+    if (isAllTreasurySelected) {
+      setSelectedTreasuryNames([])
+    } else {
+      setSelectedTreasuryNames(archivedTreasuryRows.map((r) => r.name))
+    }
+  }
+
+  const handleToggleSelectTreasuryRow = (name: string) => {
+    playClickSound()
+    setSelectedTreasuryNames((prev) =>
+      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
+    )
+  }
+
+  // Batch Restore Handlers
+  const handleBatchRestoreDash = async () => {
+    if (selectedDashIds.length === 0) return
+    playClickSound()
+    logUserAction(
+      'RESTORE',
+      'سلة المهملات والأرشيف',
+      'استعادة دفعة عناصر من الأرشيف (لوحة التحكم)',
+      `عدد العناصر: ${selectedDashIds.length}`
+    )
+    for (const id of selectedDashIds) {
+      await onRestoreDashboardRow(id)
+    }
+    setSelectedDashIds([])
+  }
+
+  const handleBatchRestoreTreasury = async () => {
+    if (selectedTreasuryNames.length === 0) return
+    playClickSound()
+    logUserAction(
+      'RESTORE',
+      'سلة المهملات والأرشيف',
+      'استعادة دفعة جهات من الأرشيف (الخزينة)',
+      `عدد الجهات: ${selectedTreasuryNames.length}`
+    )
+    for (const name of selectedTreasuryNames) {
+      await onRestoreTreasuryEntity(name)
+    }
+    setSelectedTreasuryNames([])
+  }
+
+  // Single & Batch Delete Confirmation Execution
   const handleConfirmDelete = async () => {
     if (!canDeleteItems) {
       alert('عفواً، لا تملك صلاحية حذف العناصر والعمليات')
@@ -83,14 +166,32 @@ export function ArchiveDrawer({
       return
     }
     if (!pendingDelete) return
-    if (pendingDelete.type === 'DASHBOARD') {
-      await onPermanentDeleteDashboardRow(pendingDelete.idOrName as number)
-      setSwipedDashId(null)
-    } else {
-      await onPermanentDeleteTreasuryEntity(pendingDelete.idOrName as string)
-      setSwipedTreasuryName(null)
+
+    playDeleteSound()
+    setIsBatchDeleting(true)
+
+    try {
+      if (pendingDelete.type === 'DASHBOARD' && pendingDelete.idOrName) {
+        await onPermanentDeleteDashboardRow(pendingDelete.idOrName as number)
+        setSwipedDashId(null)
+      } else if (pendingDelete.type === 'TREASURY' && pendingDelete.idOrName) {
+        await onPermanentDeleteTreasuryEntity(pendingDelete.idOrName as string)
+        setSwipedTreasuryName(null)
+      } else if (pendingDelete.type === 'BATCH_DASHBOARD') {
+        for (const id of selectedDashIds) {
+          await onPermanentDeleteDashboardRow(id)
+        }
+        setSelectedDashIds([])
+      } else if (pendingDelete.type === 'BATCH_TREASURY') {
+        for (const name of selectedTreasuryNames) {
+          await onPermanentDeleteTreasuryEntity(name)
+        }
+        setSelectedTreasuryNames([])
+      }
+    } finally {
+      setIsBatchDeleting(false)
+      setPendingDelete(null)
     }
-    setPendingDelete(null)
   }
 
   return (
@@ -113,7 +214,7 @@ export function ArchiveDrawer({
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 26, stiffness: 240 }}
-            className="relative w-full sm:w-[640px] h-full bg-white dark:bg-zinc-900 border-l border-zinc-200/80 dark:border-zinc-800 shadow-2xl z-50 flex flex-col justify-between overflow-hidden text-zinc-900 dark:text-zinc-100"
+            className="relative w-full sm:w-[680px] h-full bg-white dark:bg-zinc-900 border-l border-zinc-200/80 dark:border-zinc-800 shadow-2xl z-50 flex flex-col justify-between overflow-hidden text-zinc-900 dark:text-zinc-100"
             dir="rtl"
           >
             {/* Drawer Top Header */}
@@ -179,20 +280,60 @@ export function ArchiveDrawer({
             </div>
 
             {/* Drawer Body Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
 
               {/* TAB 1: DASHBOARD ARCHIVED TRANSACTIONS */}
               {activeTab === 'DASHBOARD' && (
                 <div className="space-y-3">
+                  {/* Batch Action Toolbar Bar */}
+                  {selectedDashIds.length > 0 && (
+                    <div className="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900/60 flex items-center justify-between gap-3 text-xs font-bold">
+                      <span className="text-sky-800 dark:text-sky-300 font-extrabold ar-num">
+                        تم تحديد {selectedDashIds.length} معاملة
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleBatchRestoreDash}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>استعادة المحدد</span>
+                        </button>
+                        {canDeleteItems && (
+                          <button
+                            onClick={() => setPendingDelete({ type: 'BATCH_DASHBOARD' })}
+                            className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>حذف نهائي للمحدد</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {archivedDashboardRows.length === 0 ? (
                     <div className="text-center py-16 text-xs text-zinc-400 dark:text-zinc-500">
                       لا توجد معاملات مؤرشفة في لوحة التحكم
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-xl">
                       <table className="w-full text-right text-xs border-collapse">
                         <thead>
                           <tr className="bg-zinc-50 dark:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300 font-bold border-b border-zinc-200 dark:border-zinc-800">
+                            <th className="py-2.5 px-3 w-10 text-center">
+                              <button
+                                onClick={handleToggleSelectAllDash}
+                                className="p-0.5 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
+                                title="تحديد الكل"
+                              >
+                                {isAllDashSelected ? (
+                                  <CheckSquare className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                                ) : (
+                                  <Square className="w-4 h-4" />
+                                )}
+                              </button>
+                            </th>
                             <th className="py-2.5 px-3">التاريخ</th>
                             <th className="py-2.5 px-3">الجهة / المستفيد</th>
                             <th className="py-2.5 px-3 text-center">نوع المعاملة</th>
@@ -204,22 +345,26 @@ export function ArchiveDrawer({
                             <AnimatePresence mode="popLayout" initial={false}>
                               {archivedDashboardRows.map((tx) => {
                                 const isSwiped = swipedDashId === tx.id
+                                const isSelected = selectedDashIds.includes(tx.id)
                                 const isDeposit = tx.type === 'DEPOSIT'
+
                                 return (
                                   <motion.tr
                                     layout
                                     key={tx.id}
                                     onDoubleClick={() => setSwipedDashId((prev) => (prev === tx.id ? null : tx.id))}
-                                    className="border-b border-zinc-200/60 dark:border-zinc-800/60 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/50 cursor-pointer select-none relative group"
+                                    className={`border-b border-zinc-200/60 dark:border-zinc-800/60 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/50 cursor-pointer select-none relative group ${
+                                      isSelected ? 'bg-sky-50/60 dark:bg-sky-950/20' : ''
+                                    }`}
                                   >
-                                    <td colSpan={4} className="p-0 relative">
+                                    <td colSpan={5} className="p-0 relative">
                                       {/* Underlying Action Bar */}
                                       {isSwiped && (
                                         <div className="absolute left-0 inset-y-0 flex items-stretch z-10">
                                           <button
                                             onClick={async (e) => {
                                               e.stopPropagation()
-                                              logUserAction('RESTORE', 'سلة المهملات والأرشيف', 'استعادة معاملة من الأرشيف', `معاملة جهة: ${tx.client_name} | قيمة: ${formatCurrency(tx.amount_cents)}`)
+                                              logUserAction('RESTORE', 'سلة المهملات والأرشيف', 'استعادة معاملة من الأرشيف', `جهة: ${tx.client_name} | قيمة: ${formatCurrency(tx.amount_cents)}`)
                                               await onRestoreDashboardRow(tx.id)
                                               setSwipedDashId(null)
                                             }}
@@ -251,6 +396,21 @@ export function ArchiveDrawer({
                                         transition={{ type: 'spring', stiffness: 300, damping: 26 }}
                                         className="flex items-center w-full px-3 py-2.5 bg-inherit"
                                       >
+                                        <div className="w-10 text-center shrink-0">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleToggleSelectDashRow(tx.id)
+                                            }}
+                                            className="p-0.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
+                                          >
+                                            {isSelected ? (
+                                              <CheckSquare className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                                            ) : (
+                                              <Square className="w-4 h-4" />
+                                            )}
+                                          </button>
+                                        </div>
                                         <div className="w-28 text-zinc-500 dark:text-zinc-400 text-[11px] ar-num">
                                           {new Date(tx.created_at).toLocaleDateString('ar-LY')}
                                         </div>
@@ -268,7 +428,7 @@ export function ArchiveDrawer({
                                         </div>
                                         <div className="w-28 text-left font-bold ar-num">
                                           <span className={isDeposit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
-                                            {isDeposit ? '+' : '-'}{formatCurrency(tx.amount_cents)} د.ل
+                                            {isDeposit ? '+' : '-'}{formatCurrency(tx.amount_cents)}
                                           </span>
                                         </div>
                                       </motion.div>
@@ -288,15 +448,55 @@ export function ArchiveDrawer({
               {/* TAB 2: TREASURY ARCHIVED ENTITIES */}
               {activeTab === 'TREASURY' && (
                 <div className="space-y-3">
+                  {/* Batch Action Toolbar Bar */}
+                  {selectedTreasuryNames.length > 0 && (
+                    <div className="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900/60 flex items-center justify-between gap-3 text-xs font-bold">
+                      <span className="text-sky-800 dark:text-sky-300 font-extrabold ar-num">
+                        تم تحديد {selectedTreasuryNames.length} جهة
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleBatchRestoreTreasury}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>استعادة المحدد</span>
+                        </button>
+                        {canDeleteItems && (
+                          <button
+                            onClick={() => setPendingDelete({ type: 'BATCH_TREASURY' })}
+                            className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>حذف نهائي للمحدد</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {archivedTreasuryRows.length === 0 ? (
                     <div className="text-center py-16 text-xs text-zinc-400 dark:text-zinc-500">
                       لا توجد جهات مؤرشفة في الخزينة
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto border border-zinc-200 dark:border-zinc-800 rounded-xl">
                       <table className="w-full text-right text-xs border-collapse">
                         <thead>
                           <tr className="bg-zinc-50 dark:bg-zinc-800/60 text-zinc-700 dark:text-zinc-300 font-bold border-b border-zinc-200 dark:border-zinc-800">
+                            <th className="py-2.5 px-3 w-10 text-center">
+                              <button
+                                onClick={handleToggleSelectAllTreasury}
+                                className="p-0.5 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
+                                title="تحديد الكل"
+                              >
+                                {isAllTreasurySelected ? (
+                                  <CheckSquare className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                                ) : (
+                                  <Square className="w-4 h-4" />
+                                )}
+                              </button>
+                            </th>
                             <th className="py-2.5 px-3">اسم الجهة</th>
                             <th className="py-2.5 px-3 text-center">المعاملات</th>
                             <th className="py-2.5 px-3 text-right">المودعات</th>
@@ -309,15 +509,19 @@ export function ArchiveDrawer({
                             <AnimatePresence mode="popLayout" initial={false}>
                               {archivedTreasuryRows.map((entity) => {
                                 const isSwiped = swipedTreasuryName === entity.name
+                                const isSelected = selectedTreasuryNames.includes(entity.name)
                                 const isPositiveNet = entity.netCents >= 0
+
                                 return (
                                   <motion.tr
                                     layout
                                     key={entity.name}
                                     onDoubleClick={() => setSwipedTreasuryName((prev) => (prev === entity.name ? null : entity.name))}
-                                    className="border-b border-zinc-200/60 dark:border-zinc-800/60 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/50 cursor-pointer select-none relative group"
+                                    className={`border-b border-zinc-200/60 dark:border-zinc-800/60 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/50 cursor-pointer select-none relative group ${
+                                      isSelected ? 'bg-sky-50/60 dark:bg-sky-950/20' : ''
+                                    }`}
                                   >
-                                    <td colSpan={5} className="p-0 relative">
+                                    <td colSpan={6} className="p-0 relative">
                                       {/* Underlying Action Bar */}
                                       {isSwiped && (
                                         <div className="absolute left-0 inset-y-0 flex items-stretch z-10">
@@ -355,6 +559,21 @@ export function ArchiveDrawer({
                                         transition={{ type: 'spring', stiffness: 300, damping: 26 }}
                                         className="flex items-center w-full px-3 py-2.5 bg-inherit"
                                       >
+                                        <div className="w-10 text-center shrink-0">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleToggleSelectTreasuryRow(entity.name)
+                                            }}
+                                            className="p-0.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
+                                          >
+                                            {isSelected ? (
+                                              <CheckSquare className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                                            ) : (
+                                              <Square className="w-4 h-4" />
+                                            )}
+                                          </button>
+                                        </div>
                                         <div className="flex-1 font-bold text-zinc-900 dark:text-zinc-100 truncate">
                                           {entity.name}
                                         </div>
@@ -369,7 +588,7 @@ export function ArchiveDrawer({
                                         </div>
                                         <div className="w-32 text-left ar-num font-bold">
                                           <span className={isPositiveNet ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}>
-                                            {formatCurrency(entity.netCents)} د.ل
+                                            {formatCurrency(entity.netCents)}
                                           </span>
                                         </div>
                                       </motion.div>

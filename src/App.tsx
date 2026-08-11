@@ -105,57 +105,20 @@ export default function App() {
     if (!window.electronAPI) return
     setStatsLoading(true)
     try {
-      const txResult = await window.electronAPI.getTransactions({ page: 1, pageSize: 1000 })
-      const rawTxs = txResult.data || []
-      const filtered = (dateFilter && dateFilter.mode !== 'NONE')
-        ? filterTransactionsByDate(rawTxs, dateFilter)
-        : rawTxs
-
-      let dep = 0
-      let withd = 0
-      const accounts = new Set<string>()
-      let depCount = 0
-      let withdCount = 0
-      let cashDepCount = 0
-      let bankDepCount = 0
-      let cashWithdCount = 0
-      let bankWithdCount = 0
-
-      filtered.forEach((tx) => {
-        if (tx.client_name) accounts.add(tx.client_name.trim())
-        const isCash = !tx.payment_method || tx.payment_method === 'نقداً'
-
-        if (tx.type === 'DEPOSIT') {
-          dep += tx.amount_cents
-          depCount += 1
-          if (isCash) cashDepCount += 1
-          else bankDepCount += 1
-        } else {
-          withd += tx.amount_cents
-          withdCount += 1
-          if (isCash) cashWithdCount += 1
-          else bankWithdCount += 1
-        }
-      })
-
-      setStats({
-        total_balance_cents: dep - withd,
-        total_deposits_cents: dep,
-        total_withdrawals_cents: withd,
-        active_accounts: accounts.size,
-        deposit_count: depCount,
-        withdrawal_count: withdCount,
-        cash_deposit_count: cashDepCount,
-        bank_deposit_count: bankDepCount,
-        cash_withdrawal_count: cashWithdCount,
-        bank_withdrawal_count: bankWithdCount,
-      })
+      const [s, archResult, trashResult] = await Promise.all([
+        window.electronAPI.getStats(),
+        window.electronAPI.getTransactions({ page: 1, pageSize: 1000, status: 'ARCHIVED' }),
+        window.electronAPI.getTransactions({ page: 1, pageSize: 1000, status: 'TRASH' }),
+      ])
+      setStats(s)
+      if (archResult?.data) setArchivedDashboardRows(archResult.data)
+      if (trashResult?.data) setDeletedDashboardRows(trashResult.data)
     } catch (err) {
       console.error('Failed to fetch stats', err)
     } finally {
       setStatsLoading(false)
     }
-  }, [dateFilter])
+  }, [])
 
   useEffect(() => {
     fetchStats()
@@ -172,7 +135,7 @@ export default function App() {
 
   const handlePermanentDeleteDashboardRow = async (id: number) => {
     if (window.electronAPI?.deleteTransaction) {
-      await window.electronAPI.deleteTransaction(id)
+      await window.electronAPI.deleteTransaction(id, true)
       await fetchStats()
     }
     setArchivedDashboardRows((prev) => prev.filter((r) => r.id !== id))
@@ -180,31 +143,47 @@ export default function App() {
 
   const handleRestoreTreasuryEntity = async (name: string) => {
     setArchivedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
+    await fetchStats()
   }
 
   const handlePermanentDeleteTreasuryEntity = async (name: string) => {
+    if (window.electronAPI?.deleteEntityTransactions) {
+      await window.electronAPI.deleteEntityTransactions(name, true)
+      await fetchStats()
+    }
     setArchivedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
   }
 
   // --- Trash / Soft Delete Handlers ---
   const handleRestoreDashboardTrashRow = async (id: number) => {
+    if (window.electronAPI?.restoreTransaction) {
+      await window.electronAPI.restoreTransaction(id)
+      await fetchStats()
+    }
     setDeletedDashboardRows((prev) => prev.filter((r) => r.id !== id))
-    await fetchStats()
   }
 
   const handlePermanentDeleteDashboardTrashRow = async (id: number) => {
     if (window.electronAPI?.deleteTransaction) {
-      await window.electronAPI.deleteTransaction(id)
+      await window.electronAPI.deleteTransaction(id, true)
       await fetchStats()
     }
     setDeletedDashboardRows((prev) => prev.filter((r) => r.id !== id))
   }
 
   const handleRestoreTreasuryTrashEntity = async (name: string) => {
+    if (window.electronAPI?.restoreEntityTransactions) {
+      await window.electronAPI.restoreEntityTransactions(name)
+      await fetchStats()
+    }
     setDeletedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
   }
 
   const handlePermanentDeleteTreasuryTrashEntity = async (name: string) => {
+    if (window.electronAPI?.deleteEntityTransactions) {
+      await window.electronAPI.deleteEntityTransactions(name, true)
+      await fetchStats()
+    }
     setDeletedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
   }
 

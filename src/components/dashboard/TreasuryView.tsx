@@ -296,7 +296,7 @@ export function TreasuryView({ dateFilter, onArchiveEntity, onDeleteEntity }: Tr
     try {
       const [s, txResult] = await Promise.all([
         window.electronAPI.getStats(),
-        window.electronAPI.getTransactions({ page: 1, pageSize: 1000 }),
+        window.electronAPI.getTransactions({ page: 1, pageSize: 1000, status: 'ALL_NON_DELETED' }),
       ])
       setStats(s)
       setTransactions(txResult.data)
@@ -310,6 +310,42 @@ export function TreasuryView({ dateFilter, onArchiveEntity, onDeleteEntity }: Tr
   useEffect(() => {
     loadTreasuryData()
   }, [loadTreasuryData])
+
+  // Custom Zero-Value Registered Entities State
+  const [customEntities, setCustomEntities] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('salla_treasury_custom_entities')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  // Entity persistence: ensure all distinct transaction client_names are remembered in customEntities
+  useEffect(() => {
+    if (transactions.length > 0) {
+      const names = new Set(customEntities)
+      let added = false
+      transactions.forEach((t) => {
+        const name = t.client_name?.trim()
+        if (name && !names.has(name)) {
+          names.add(name)
+          added = true
+        }
+      })
+      if (added) {
+        setCustomEntities(Array.from(names))
+      }
+    }
+  }, [transactions, customEntities])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('salla_treasury_custom_entities', JSON.stringify(customEntities))
+    } catch (e) {
+      console.error('Failed to save custom entities:', e)
+    }
+  }, [customEntities])
 
   // Click-outside and Escape key listener to dismiss swiped row or open drawer
   useEffect(() => {
@@ -363,8 +399,8 @@ export function TreasuryView({ dateFilter, onArchiveEntity, onDeleteEntity }: Tr
     setPendingDeleteName(name)
   }
 
-  // Confirm Delete handler
-  const handleConfirmDelete = () => {
+  // Confirm Delete handler: soft delete entity transactions in DB & update UI/Vault
+  const handleConfirmDelete = async () => {
     if (!canDeleteItems) {
       alert('عفواً، لا تملك صلاحية حذف العناصر والعمليات')
       setPendingDeleteName(null)
@@ -385,13 +421,17 @@ export function TreasuryView({ dateFilter, onArchiveEntity, onDeleteEntity }: Tr
       onDeleteEntity?.(targetEntity)
     }
 
-    setTimeout(() => {
-      setTransactions((prev) => prev.filter((t) => t.client_name.trim() !== targetName))
-      setDeletingName(null)
-    }, 350)
+    if (window.electronAPI?.deleteEntityTransactions) {
+      await window.electronAPI.deleteEntityTransactions(targetName)
+    }
+
+    setCustomEntities((prev) => prev.filter((n) => n !== targetName))
+    setTransactions((prev) => prev.filter((t) => t.client_name.trim() !== targetName))
+    setDeletingName(null)
+    await loadTreasuryData()
   }
 
-  // Archive handler
+  // Archive handler: hide row without altering financial totals or Vault balances
   const handleArchive = (name: string, e?: React.MouseEvent) => {
     e?.stopPropagation()
     setSwipedRowName(null)
@@ -407,20 +447,9 @@ export function TreasuryView({ dateFilter, onArchiveEntity, onDeleteEntity }: Tr
     }
 
     setTimeout(() => {
-      setTransactions((prev) => prev.filter((t) => t.client_name.trim() !== name))
       setArchivingName(null)
     }, 350)
   }
-
-  // Custom Zero-Value Registered Entities State
-  const [customEntities, setCustomEntities] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('salla_treasury_custom_entities')
-      return saved ? JSON.parse(saved) : []
-    } catch {
-      return []
-    }
-  })
 
   useEffect(() => {
     try {

@@ -26,11 +26,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   togglePin: (id: number): Promise<{ success: boolean; is_pinned: number }> =>
     ipcRenderer.invoke('db:toggle-pin', id),
 
-  deleteTransaction: (id: number): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke('db:delete-transaction', id),
+  deleteTransaction: (id: number, permanent?: boolean): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('db:delete-transaction', id, permanent),
+
+  restoreTransaction: (id: number): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('db:restore-transaction', id),
 
   archiveTransaction: (id: number): Promise<{ success: boolean; is_archived: number }> =>
     ipcRenderer.invoke('db:archive-transaction', id),
+
+  deleteEntityTransactions: (clientName: string, permanent?: boolean): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('db:delete-entity-transactions', clientName, permanent),
+
+  restoreEntityTransactions: (clientName: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('db:restore-entity-transactions', clientName),
 
   updateEntityName: (params: { oldName: string; newName: string }): Promise<{ success: boolean; updatedCount?: number; message?: string }> =>
     ipcRenderer.invoke('db:update-entity-name', params),

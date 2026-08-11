@@ -87,6 +87,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
           pageSize: 1000,
           search: searchValue,
           type: typeFilter,
+          status: 'ACTIVE',
         })
         const dateFiltered = filterTransactionsByDate(result.data, dateFilter)
         const sorted = sortTransactions(dateFiltered)
@@ -100,6 +101,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
           pageSize: PAGE_SIZE,
           search: searchValue,
           type: typeFilter,
+          status: 'ACTIVE',
         })
         setData(sortTransactions(result.data))
         setTotal(result.total)

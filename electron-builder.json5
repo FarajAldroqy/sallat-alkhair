@@ -31,21 +31,12 @@
     ],
     "artifactName": "${productName}-Mac-${version}.${ext}"
   },
-  // The installer is the primary deliverable; portable stays as a fallback for
-  // machines where software cannot be installed at all. Both targets previously
-  // emitted "${productName}.${ext}" and would have overwritten each other, so each
-  // now carries a distinct, versioned artifact name.
+  // The NSIS installer is the only Windows deliverable.
   "win": {
     "icon": "build/icon.ico",
     "target": [
       {
         "target": "nsis",
-        "arch": [
-          "x64"
-        ]
-      },
-      {
-        "target": "portable",
         "arch": [
           "x64"
         ]
@@ -68,13 +59,9 @@
     "language": "1025",
     // Blockmaps only serve electron-updater delta downloads, which this app does not
     // use. Generating one forces a differential-friendly (weaker) compression on the
-    // staged archive that the portable target also reuses, costing ~12MB on both
-    // artifacts. Re-enable this if auto-update is ever added.
+    // staged archive, costing ~12MB. Re-enable if auto-update is ever added.
     "differentialPackage": false,
     "artifactName": "${productName}-Setup-${version}.${ext}"
-  },
-  "portable": {
-    "artifactName": "${productName}-Portable-${version}.${ext}"
   },
   "linux": {
     "target": [

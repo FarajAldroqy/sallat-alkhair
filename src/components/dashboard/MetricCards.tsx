@@ -21,8 +21,21 @@ function SkeletonCard() {
   )
 }
 
+const DEFAULT_STATS: Stats = {
+  total_balance_cents: 0,
+  total_deposits_cents: 0,
+  total_withdrawals_cents: 0,
+  active_accounts: 0,
+  deposit_count: 0,
+  withdrawal_count: 0,
+  cash_deposit_count: 0,
+  bank_deposit_count: 0,
+  cash_withdrawal_count: 0,
+  bank_withdrawal_count: 0,
+}
+
 export function MetricCards({ stats, loading }: MetricCardsProps) {
-  if (loading || !stats) {
+  if (loading && !stats) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[0, 1, 2, 3].map((i) => <SkeletonCard key={i} />)}
@@ -30,11 +43,13 @@ export function MetricCards({ stats, loading }: MetricCardsProps) {
     )
   }
 
-  const cashDeposits = stats.cash_deposit_count ?? Math.max(0, stats.deposit_count)
-  const bankDeposits = stats.bank_deposit_count ?? 0
+  const currentStats = stats || DEFAULT_STATS
 
-  const cashWithdrawals = stats.cash_withdrawal_count ?? Math.max(0, stats.withdrawal_count)
-  const bankWithdrawals = stats.bank_withdrawal_count ?? 0
+  const cashDeposits = currentStats.cash_deposit_count ?? Math.max(0, currentStats.deposit_count)
+  const bankDeposits = currentStats.bank_deposit_count ?? 0
+
+  const cashWithdrawals = currentStats.cash_withdrawal_count ?? Math.max(0, currentStats.withdrawal_count)
+  const bankWithdrawals = currentStats.bank_withdrawal_count ?? 0
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 font-arabic" dir="rtl">
@@ -54,7 +69,7 @@ export function MetricCards({ stats, loading }: MetricCardsProps) {
           </div>
 
           <div className="text-2xl font-black tracking-tight text-rose-600 dark:text-rose-400 mb-3 ar-num">
-            {formatCurrency(stats.total_withdrawals_cents)}
+            {formatCurrency(currentStats.total_withdrawals_cents)}
           </div>
 
           <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-medium">
@@ -79,7 +94,7 @@ export function MetricCards({ stats, loading }: MetricCardsProps) {
           </div>
 
           <div className="text-2xl font-black tracking-tight text-emerald-600 dark:text-emerald-400 mb-3 ar-num">
-            {formatCurrency(stats.total_deposits_cents)}
+            {formatCurrency(currentStats.total_deposits_cents)}
           </div>
 
           <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-medium">
@@ -104,7 +119,7 @@ export function MetricCards({ stats, loading }: MetricCardsProps) {
           </div>
 
           <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white mb-3 ar-num">
-            {stats.deposit_count} <span className="text-xs font-bold text-zinc-400">معاملة</span>
+            {currentStats.deposit_count} <span className="text-xs font-bold text-zinc-400">معاملة</span>
           </div>
 
           {/* Dual breakdown badges */}
@@ -135,7 +150,7 @@ export function MetricCards({ stats, loading }: MetricCardsProps) {
           </div>
 
           <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white mb-3 ar-num">
-            {stats.withdrawal_count} <span className="text-xs font-bold text-zinc-400">معاملة</span>
+            {currentStats.withdrawal_count} <span className="text-xs font-bold text-zinc-400">معاملة</span>
           </div>
 
           {/* Dual breakdown badges */}

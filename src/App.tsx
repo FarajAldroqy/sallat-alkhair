@@ -56,6 +56,19 @@ function PlaceholderSection({ icon: Icon, title }: { icon: React.ComponentType<{
   )
 }
 
+const DEFAULT_STATS: Stats = {
+  total_balance_cents: 0,
+  total_deposits_cents: 0,
+  total_withdrawals_cents: 0,
+  active_accounts: 0,
+  deposit_count: 0,
+  withdrawal_count: 0,
+  cash_deposit_count: 0,
+  bank_deposit_count: 0,
+  cash_withdrawal_count: 0,
+  bank_withdrawal_count: 0,
+}
+
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return sessionStorage.getItem('is_logged_in') === 'true'
@@ -67,8 +80,8 @@ export default function App() {
   }, [])
 
   const [activeSection, setActiveSection] = useState('dashboard')
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [statsLoading, setStatsLoading] = useState(true)
+  const [stats, setStats] = useState<Stats>(DEFAULT_STATS)
+  const [statsLoading, setStatsLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [dateFilter, setDateFilter] = useState<DateFilter>({ mode: 'NONE' })
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
@@ -109,25 +122,84 @@ export default function App() {
   const fetchStats = useCallback(async () => {
     initMockElectronAPI()
     if (!window.electronAPI) {
+      setStats((prev) => prev || DEFAULT_STATS)
       setStatsLoading(false)
       return
     }
     setStatsLoading(true)
     try {
-      const [s, archResult, trashResult] = await Promise.all([
+      const [s, activeResult, archResult, trashResult] = await Promise.all([
         window.electronAPI.getStats(),
+        window.electronAPI.getTransactions({ page: 1, pageSize: 1000, status: 'ACTIVE' }),
         window.electronAPI.getTransactions({ page: 1, pageSize: 1000, status: 'ARCHIVED' }),
         window.electronAPI.getTransactions({ page: 1, pageSize: 1000, status: 'TRASH' }),
       ])
-      setStats(s)
+
       if (archResult?.data) setArchivedDashboardRows(archResult.data)
       if (trashResult?.data) setDeletedDashboardRows(trashResult.data)
+
+      const activeTxs = activeResult?.data || []
+      const filtered = (dateFilter && dateFilter.mode !== 'NONE')
+        ? filterTransactionsByDate(activeTxs, dateFilter)
+        : activeTxs
+
+      let dep = 0
+      let withd = 0
+      const accounts = new Set<string>()
+      let depCount = 0
+      let withdCount = 0
+      let cashDepCount = 0
+      let bankDepCount = 0
+      let cashWithdCount = 0
+      let bankWithdCount = 0
+
+      filtered.forEach((tx) => {
+        if (tx.client_name) accounts.add(tx.client_name.trim())
+        const isCash = !tx.payment_method || tx.payment_method === 'نقداً'
+
+        if (tx.type === 'DEPOSIT') {
+          dep += tx.amount_cents
+          depCount += 1
+          if (isCash) cashDepCount += 1
+          else bankDepCount += 1
+        } else {
+          withd += tx.amount_cents
+          withdCount += 1
+          if (isCash) cashWithdCount += 1
+          else bankWithdCount += 1
+        }
+      })
+
+      const baseStats = s || DEFAULT_STATS
+      const finalStats: Stats = (dateFilter && dateFilter.mode !== 'NONE')
+        ? {
+            total_balance_cents: dep - withd,
+            total_deposits_cents: dep,
+            total_withdrawals_cents: withd,
+            active_accounts: accounts.size,
+            deposit_count: depCount,
+            withdrawal_count: withdCount,
+            cash_deposit_count: cashDepCount,
+            bank_deposit_count: bankDepCount,
+            cash_withdrawal_count: cashWithdCount,
+            bank_withdrawal_count: bankWithdCount,
+          }
+        : {
+            ...baseStats,
+            cash_deposit_count: cashDepCount,
+            bank_deposit_count: bankDepCount,
+            cash_withdrawal_count: cashWithdCount,
+            bank_withdrawal_count: bankWithdCount,
+          }
+
+      setStats(finalStats)
     } catch (err) {
       console.error('Failed to fetch stats', err)
+      setStats((prev) => prev || DEFAULT_STATS)
     } finally {
       setStatsLoading(false)
     }
-  }, [])
+  }, [dateFilter])
 
   useEffect(() => {
     fetchStats()

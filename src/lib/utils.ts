@@ -25,6 +25,28 @@ export function normalizeArabicNumerals(input: string): string {
     .replace(/[۰-۹]/g, (w) => persianDigits.indexOf(w).toString())
 }
 
+/** Clean amount string, normalize Eastern Arabic numerals, and fix Windows IME duplication bug (typing ٣ producing 33) */
+export function cleanAndNormalizeAmount(rawVal: string, prevVal: string = ''): string {
+  const hasEasternArabic = /[٠-٩۰-۹]/.test(rawVal)
+  const normalized = normalizeArabicNumerals(rawVal)
+  let cleaned = normalized.replace(/[^0-9.]/g, '')
+
+  // Fix Windows IME Eastern Arabic duplication bug
+  if (hasEasternArabic && cleaned.length === prevVal.length + 2) {
+    let diffStart = 0
+    while (diffStart < prevVal.length && prevVal[diffStart] === cleaned[diffStart]) {
+      diffStart++
+    }
+    const inserted = cleaned.slice(diffStart, diffStart + 2)
+    if (inserted.length === 2 && inserted[0] === inserted[1] && inserted[0] >= '0' && inserted[0] <= '9') {
+      cleaned = cleaned.slice(0, diffStart) + inserted[0] + cleaned.slice(diffStart + 2)
+    }
+  }
+
+  const parts = cleaned.split('.')
+  return parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : cleaned
+}
+
 /** Format date into Arabic/Standard date string */
 export function formatDate(dateStr: string, locale = 'ar-LY'): string {
   try {

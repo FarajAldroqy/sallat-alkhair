@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/select'
 import { ArrowDownCircle, ArrowUpCircle, Loader2 } from 'lucide-react'
 import type { TransactionCreate, PaymentMethod } from '@/types'
-import { normalizeArabicNumerals } from '@/lib/utils'
+import { cleanAndNormalizeAmount } from '@/lib/utils'
 import { usePermission } from '@/hooks/usePermission'
 
 interface TransactionModalProps {
@@ -59,12 +59,7 @@ export function TransactionModal({ open, mode, onClose, onSubmit, entities = [] 
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawVal = e.target.value
-    const normalized = normalizeArabicNumerals(rawVal)
-    // Strip non-numeric & non-decimal chars
-    const cleaned = normalized.replace(/[^0-9.]/g, '')
-    // Prevent multiple decimal points
-    const parts = cleaned.split('.')
-    const validVal = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : cleaned
+    const validVal = cleanAndNormalizeAmount(rawVal, amountStr)
     setAmountStr(validVal)
   }
 

@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label'
 import {
   Filter, RotateCcw, Check, ArrowUp, ArrowDown, DollarSign, CreditCard, Calendar,
 } from 'lucide-react'
-import { normalizeArabicNumerals } from '@/lib/utils'
+import { cleanAndNormalizeAmount } from '@/lib/utils'
 
 export interface DashboardFilterState {
   type: 'ALL' | 'DEPOSIT' | 'WITHDRAWAL'
@@ -55,13 +55,13 @@ export function DashboardFilterModal({
   }, [filterState, open])
 
   const handleMinAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const normalized = normalizeArabicNumerals(e.target.value).replace(/[^0-9.]/g, '')
-    setLocalFilter((prev) => ({ ...prev, minAmount: normalized }))
+    const rawVal = e.target.value
+    setLocalFilter((prev) => ({ ...prev, minAmount: cleanAndNormalizeAmount(rawVal, prev.minAmount) }))
   }
 
   const handleMaxAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const normalized = normalizeArabicNumerals(e.target.value).replace(/[^0-9.]/g, '')
-    setLocalFilter((prev) => ({ ...prev, maxAmount: normalized }))
+    const rawVal = e.target.value
+    setLocalFilter((prev) => ({ ...prev, maxAmount: cleanAndNormalizeAmount(rawVal, prev.maxAmount) }))
   }
 
   const handleApply = () => {

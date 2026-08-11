@@ -5,7 +5,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
-  Eye, Printer, Plus, CheckSquare,
+  Eye, Printer, Plus, CheckSquare, Filter,
   ChevronLeft, ChevronRight, Pin, Trash2, Archive,
 } from 'lucide-react'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
@@ -16,6 +16,11 @@ import { ReceiptModal } from './ReceiptModal'
 import { DeleteConfirmModal } from './DeleteConfirmModal'
 import { PrintReceipt } from './PrintReceipt'
 import { TransactionsReportModal } from './TransactionsReportModal'
+import {
+  DashboardFilterModal,
+  DashboardFilterState,
+  defaultDashboardFilter,
+} from './DashboardFilterModal'
 import { usePermission } from '@/hooks/usePermission'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { logUserAction } from '@/lib/auditLogger'
@@ -75,9 +80,24 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState<'DEPOSIT' | 'WITHDRAWAL'>('DEPOSIT')
 
+  // Funnel Filter Modal State
+  const [dashboardFilter, setDashboardFilter] = useState<DashboardFilterState>(defaultDashboardFilter)
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false)
+
   // Receipt viewing modal state
   const [selectedReceipt, setSelectedReceipt] = useState<Transaction | null>(null)
   const [receiptOpen, setReceiptOpen] = useState(false)
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (dashboardFilter.type !== 'ALL') count++
+    if (dashboardFilter.paymentMethod !== 'ALL') count++
+    if (dashboardFilter.minAmount.trim() !== '') count++
+    if (dashboardFilter.maxAmount.trim() !== '') count++
+    if (dashboardFilter.sortDateOrder !== 'desc') count++
+    if (dashboardFilter.sortByAmount !== 'none') count++
+    return count
+  }, [dashboardFilter])
 
   const fetchData = useCallback(async () => {
     initMockElectronAPI()
@@ -87,26 +107,78 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
     }
     setLoading(true)
     try {
-      if (dateFilter && dateFilter.mode !== 'NONE') {
+      const hasCustomFilters =
+        (dateFilter && dateFilter.mode !== 'NONE') ||
+        dashboardFilter.paymentMethod !== 'ALL' ||
+        dashboardFilter.minAmount.trim() !== '' ||
+        dashboardFilter.maxAmount.trim() !== '' ||
+        dashboardFilter.sortDateOrder !== 'desc' ||
+        dashboardFilter.sortByAmount !== 'none' ||
+        typeFilter !== 'ALL' ||
+        dashboardFilter.type !== 'ALL'
+
+      const effectiveType = typeFilter !== 'ALL' ? typeFilter : dashboardFilter.type
+
+      if (hasCustomFilters) {
         const result = await window.electronAPI.getTransactions({
           page: 1,
           pageSize: 1000,
           search: searchValue,
-          type: typeFilter,
+          type: effectiveType,
           status: 'ACTIVE',
         })
-        const dateFiltered = filterTransactionsByDate(result.data, dateFilter)
-        const sorted = sortTransactions(dateFiltered)
-        setTotal(sorted.length)
-        // Paginate client-side
+        let items = result.data || []
+
+        // Apply date filter
+        if (dateFilter && dateFilter.mode !== 'NONE') {
+          items = filterTransactionsByDate(items, dateFilter)
+        }
+
+        // Apply payment method filter
+        if (dashboardFilter.paymentMethod !== 'ALL') {
+          items = items.filter((t) => t.payment_method === dashboardFilter.paymentMethod)
+        }
+
+        // Apply min amount filter
+        if (dashboardFilter.minAmount.trim() !== '') {
+          const minCents = parseFloat(dashboardFilter.minAmount) * 100
+          items = items.filter((t) => t.amount_cents >= minCents)
+        }
+
+        // Apply max amount filter
+        if (dashboardFilter.maxAmount.trim() !== '') {
+          const maxCents = parseFloat(dashboardFilter.maxAmount) * 100
+          items = items.filter((t) => t.amount_cents <= maxCents)
+        }
+
+        // Apply custom sorting
+        items.sort((a, b) => {
+          const pinA = a.is_pinned ?? 0
+          const pinB = b.is_pinned ?? 0
+          if (pinA !== pinB) return pinB - pinA
+
+          if (dashboardFilter.sortByAmount === 'desc') {
+            return b.amount_cents - a.amount_cents
+          }
+          if (dashboardFilter.sortByAmount === 'asc') {
+            return a.amount_cents - b.amount_cents
+          }
+
+          if (dashboardFilter.sortDateOrder === 'asc') {
+            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          }
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        })
+
+        setTotal(items.length)
         const start = (page - 1) * PAGE_SIZE
-        setData(sorted.slice(start, start + PAGE_SIZE))
+        setData(items.slice(start, start + PAGE_SIZE))
       } else {
         const result = await window.electronAPI.getTransactions({
           page,
           pageSize: PAGE_SIZE,
           search: searchValue,
-          type: typeFilter,
+          type: 'ALL',
           status: 'ACTIVE',
         })
         setData(sortTransactions(result.data))
@@ -117,13 +189,13 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
     } finally {
       setLoading(false)
     }
-  }, [page, searchValue, typeFilter, dateFilter])
+  }, [page, searchValue, typeFilter, dateFilter, dashboardFilter])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   useEffect(() => {
     setPage(1)
-  }, [searchValue, typeFilter, dateFilter])
+  }, [searchValue, typeFilter, dateFilter, dashboardFilter])
 
   useEffect(() => {
     fetchData()
@@ -444,6 +516,26 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
 
           {/* Left/End action buttons */}
           <div className="flex items-center gap-2">
+            <Button
+              id="dashboard-funnel-filter-btn"
+              variant={activeFilterCount > 0 ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setIsFilterModalOpen(true)}
+              className={`h-8 gap-1.5 text-xs font-arabic font-semibold shadow-xs transition-all cursor-pointer ${
+                activeFilterCount > 0
+                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-600'
+                  : 'text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+              }`}
+            >
+              <Filter className="w-3.5 h-3.5" />
+              <span>تصفية وفلترة</span>
+              {activeFilterCount > 0 && (
+                <span className="flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-white text-emerald-800 ar-num mr-0.5">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+
             <Button
               id="toggle-selection-btn"
               variant={isSelectionMode ? 'default' : 'outline'}
@@ -920,6 +1012,15 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
         transactions={selectedIds.length > 0 ? data.filter((t) => selectedIds.includes(t.id)) : data}
         stats={null}
         dateFilter={dateFilter}
+      />
+
+      {/* Advanced Funnel Filter Modal */}
+      <DashboardFilterModal
+        open={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        filterState={dashboardFilter}
+        onApplyFilter={(newFilter) => setDashboardFilter(newFilter)}
+        onResetFilter={() => setDashboardFilter(defaultDashboardFilter)}
       />
     </>
   )

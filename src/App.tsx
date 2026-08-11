@@ -16,10 +16,14 @@ import { NotesModal } from '@/components/dashboard/NotesModal'
 import type { Stats, DateFilter, Transaction } from '@/types'
 import { filterTransactionsByDate } from '@/lib/utils'
 import { initAutoBackupListener } from '@/lib/backupManager'
+import { initMockElectronAPI } from '@/lib/mockApi'
 import {
   BarChart2, Users, Settings, Database, FileText, Sparkles,
   HelpCircle, Search, LayoutDashboard,
 } from 'lucide-react'
+
+// Initialize fallback mock API if running in browser mode outside Electron
+initMockElectronAPI()
 
 const SECTION_TITLES: Record<string, string> = {
   dashboard:    'Dashboard',
@@ -58,6 +62,7 @@ export default function App() {
   })
 
   useEffect(() => {
+    initMockElectronAPI()
     initAutoBackupListener()
   }, [])
 
@@ -102,7 +107,11 @@ export default function App() {
   }
 
   const fetchStats = useCallback(async () => {
-    if (!window.electronAPI) return
+    initMockElectronAPI()
+    if (!window.electronAPI) {
+      setStatsLoading(false)
+      return
+    }
     setStatsLoading(true)
     try {
       const [s, archResult, trashResult] = await Promise.all([

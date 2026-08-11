@@ -23,6 +23,8 @@ import {
   playDepositSound, playWithdrawalSound, playDeleteSound, playClickSound
 } from '@/lib/soundEffects'
 
+import { initMockElectronAPI } from '@/lib/mockApi'
+
 const PAGE_SIZE = 8
 
 function sortTransactions(items: Transaction[]): Transaction[] {
@@ -78,7 +80,11 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
   const [receiptOpen, setReceiptOpen] = useState(false)
 
   const fetchData = useCallback(async () => {
-    if (!window.electronAPI) return
+    initMockElectronAPI()
+    if (!window.electronAPI) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     try {
       if (dateFilter && dateFilter.mode !== 'NONE') {
@@ -261,6 +267,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
 
   // NEW TRANSACTION CREATION: Resets to Page 1 and triggers ultra-fast 140ms camera strobe flash
   const handleCreate = async (payload: TransactionCreate) => {
+    initMockElectronAPI()
     if (payload.type === 'DEPOSIT') playDepositSound()
     else if (payload.type === 'WITHDRAWAL') playWithdrawalSound()
 

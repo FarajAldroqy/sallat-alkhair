@@ -21,6 +21,7 @@ import {
 import { usePermission } from '@/hooks/usePermission'
 import { logUserAction } from '@/lib/auditLogger'
 import { playDeleteSound, playClickSound } from '@/lib/soundEffects'
+import { initMockElectronAPI } from '@/lib/mockApi'
 
 interface EntityBalance {
   name: string
@@ -72,7 +73,6 @@ export function KryptoniteFishbowl({
       ref={fishbowlRef}
       className="relative flex flex-col items-center justify-center my-6 select-none"
     >
-      {/* Container الرئيسي مع أنيميشن التكبير عند النقر والتفاعل (Click Toggle & Motion) */}
       <motion.div
         onClick={(e) => {
           e.stopPropagation()
@@ -83,16 +83,9 @@ export function KryptoniteFishbowl({
         transition={{ type: "spring", stiffness: 220, damping: 18 }}
         className="relative w-80 h-80 rounded-full border-[5px] border-white/80 shadow-[inset_0_0_35px_rgba(255,255,255,0.7),0_20px_40px_rgba(16,185,129,0.3)] bg-gradient-to-b from-white/40 via-emerald-50/10 to-emerald-950/50 backdrop-blur-md overflow-hidden cursor-pointer"
       >
-        {/* 1. الفوهة العلوية البارزة والعمق الزجاجي الـ 3D */}
         <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[75%] h-9 rounded-[100%] border-[3px] border-white/90 bg-gradient-to-b from-white/40 to-transparent shadow-[inset_0_8px_16px_rgba(0,0,0,0.3)] z-30 pointer-events-none" />
-
-        {/* تجويف انعكاس الضوء الداخلي أعلى الماء */}
         <div className="absolute top-10 left-1/2 -translate-x-1/2 w-[60%] h-6 rounded-[100%] bg-white/10 blur-[2px] z-20 pointer-events-none" />
-
-        {/* 2. منطقة سائل الكريبتونيت (الجزء السفلي 55%) */}
         <div className="absolute bottom-0 left-0 w-full h-[55%] bg-gradient-to-b from-emerald-500 via-emerald-600 to-emerald-900 z-10">
-
-          {/* --- طبقة الأمواج المتحركة الأولى (Front Wave) --- */}
           <div className="absolute -top-6 left-0 w-[200%] h-8 pointer-events-none overflow-hidden">
             <motion.div
               className="flex w-full h-full"
@@ -107,8 +100,6 @@ export function KryptoniteFishbowl({
               </svg>
             </motion.div>
           </div>
-
-          {/* --- طبقة الأمواج المتحركة الثانية (Back Translucent Wave) --- */}
           <div className="absolute -top-5 left-0 w-[200%] h-8 pointer-events-none overflow-hidden opacity-50">
             <motion.div
               className="flex w-full h-full"
@@ -123,8 +114,6 @@ export function KryptoniteFishbowl({
               </svg>
             </motion.div>
           </div>
-
-          {/* فقاعات غازية متصاعدة */}
           <motion.div
             animate={{ y: [20, -50], opacity: [0, 1, 0] }}
             transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
@@ -136,21 +125,12 @@ export function KryptoniteFishbowl({
             className="absolute bottom-2 right-1/3 w-3 h-3 rounded-full bg-emerald-100/70"
           />
         </div>
-
-        {/* داخل الحوض الزجاجي الكريستالي: توهج نيون متحرك وحلقات حيوية */}
         <div className="absolute inset-2 rounded-full overflow-hidden flex items-center justify-center">
-          {/* خلفية سائلة غنية بالتوهج (ثابتة — الأنيميشن كان يعيد رسم الطبقة كل إطار) */}
           <div className="absolute inset-0 bg-gradient-to-br from-emerald-300/40 via-teal-500/20 to-emerald-950/80" />
-
-          {/* دوائر طاقة برّاقة داخل الحوض (ثابتة بدل الدوران المستمر) */}
           <div className="absolute -inset-10 border border-emerald-200/30 rounded-full border-dashed pointer-events-none" />
           <div className="absolute inset-4 border border-emerald-300/20 rounded-full pointer-events-none" />
-
-          {/* انعكاس الضوء الكريستالي الداخلي */}
           <div className="absolute top-3 left-6 w-28 h-12 rounded-full bg-white/30 blur-xs -rotate-45 pointer-events-none" />
         </div>
-
-        {/* النص المركزي الـ HUGE داخل الحوض الكريستالي */}
         <motion.div
           animate={{ y: [0, -4, 0] }}
           transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
@@ -160,14 +140,12 @@ export function KryptoniteFishbowl({
             <Coins className="w-3.5 h-3.5 text-emerald-400" />
             <span>إجمالي رصيد الخزينة</span>
           </div>
-
           <div className="flex items-center justify-center gap-1.5 text-white font-extrabold text-2xl sm:text-3xl tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)] ar-num">
             <span>{cleanAmount}</span>
             <span className="text-lg font-bold text-emerald-200">د.ل</span>
           </div>
         </motion.div>
       </motion.div>
-
       {/* 3 CURVED RADIAL FLOATING ACTION BUTTONS ALONG LEFT BOWL ARC */}
       <AnimatePresence>
         {showActions && (
@@ -291,7 +269,11 @@ export function TreasuryView({ dateFilter, onArchiveEntity, onDeleteEntity }: Tr
   }
 
   const loadTreasuryData = useCallback(async () => {
-    if (!window.electronAPI) return
+    initMockElectronAPI()
+    if (!window.electronAPI) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     try {
       const [s, txResult] = await Promise.all([

@@ -14,6 +14,7 @@ declare global {
       deleteEntityTransactions: (clientName: string, permanent?: boolean) => Promise<{ success: boolean }>
       restoreEntityTransactions: (clientName: string) => Promise<{ success: boolean }>
       updateEntityName: (p: { oldName: string; newName: string }) => Promise<{ success: boolean; updatedCount?: number; message?: string }>
+      restoreAllTransactions: (txs: Transaction[]) => Promise<{ success: boolean; restoredCount?: number; error?: string }>
     }
   }
 }

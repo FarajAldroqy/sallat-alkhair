@@ -100,13 +100,47 @@ function registerIpcHandlers() {
     }
   })
 
+  // POST /restore-all-transactions – replace all transactions in SQLite for backup restoration
+  ipcMain.handle('db:restore-all-transactions', (_event, txs: any[]) => {
+    try {
+      db.exec('DELETE FROM transactions')
+      const stmt = db.prepare(`
+        INSERT INTO transactions (id, client_name, type, amount_cents, payment_method, status, is_pinned, is_archived, is_deleted, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+
+      const insertMany = db.transaction((items: any[]) => {
+        for (const t of items) {
+          stmt.run(
+            t.id,
+            t.client_name,
+            t.type,
+            t.amount_cents,
+            t.payment_method || 'نقداً',
+            t.status || 'COMPLETED',
+            t.is_pinned ?? 0,
+            t.is_archived ?? 0,
+            t.is_deleted ?? 0,
+            t.created_at || new Date().toISOString()
+          )
+        }
+      })
+
+      insertMany(txs || [])
+      return { success: true, restoredCount: txs?.length ?? 0 }
+    } catch (err: any) {
+      console.error('Failed to restore all transactions:', err)
+      return { success: false, error: err.message }
+    }
+  })
+
   // GET /transactions – paginated + searchable + sorted by is_pinned DESC
   ipcMain.handle('db:get-transactions', (_event, params: {
     page?: number
     pageSize?: number
     search?: string
     type?: string
-    status?: 'ACTIVE' | 'ARCHIVED' | 'TRASH' | 'ALL_NON_DELETED'
+    status?: 'ACTIVE' | 'ARCHIVED' | 'TRASH' | 'ALL_NON_DELETED' | 'ALL'
   }) => {
     try {
       const page = params?.page ?? 1
@@ -125,6 +159,8 @@ function registerIpcHandlers() {
         whereClause += ' AND is_deleted = 1'
       } else if (status === 'ALL_NON_DELETED') {
         whereClause += ' AND is_deleted = 0'
+      } else if (status === 'ALL') {
+        // No status filter: return ALL rows
       }
 
       const args: (string | number)[] = []

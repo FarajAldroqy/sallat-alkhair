@@ -47,7 +47,7 @@ export interface GetTransactionsParams {
   pageSize?: number
   search?: string
   type?: 'DEPOSIT' | 'WITHDRAWAL' | 'ALL'
-  status?: 'ACTIVE' | 'ARCHIVED' | 'TRASH' | 'ALL_NON_DELETED'
+  status?: 'ACTIVE' | 'ARCHIVED' | 'TRASH' | 'ALL_NON_DELETED' | 'ALL'
 }
 
 export interface ChartDataPoint {

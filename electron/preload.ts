@@ -43,6 +43,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   updateEntityName: (params: { oldName: string; newName: string }): Promise<{ success: boolean; updatedCount?: number; message?: string }> =>
     ipcRenderer.invoke('db:update-entity-name', params),
+
+  restoreAllTransactions: (txs: Transaction[]): Promise<{ success: boolean; restoredCount?: number; error?: string }> =>
+    ipcRenderer.invoke('db:restore-all-transactions', txs),
 })
 
 // Keep legacy ipcRenderer for backward compatibility

@@ -13,6 +13,7 @@ export interface BackupPayload {
   notes: any[]
   transactions: any[]
   treasury: any[]
+  archived_treasury?: any[]
   archived: any[]
   audit_logs: any[]
 }
@@ -112,6 +113,7 @@ export async function collectSystemPayload(): Promise<BackupPayload> {
   let users = []
   let notes = []
   let treasury = []
+  let archived_treasury = []
   let archived = []
   let audit_logs = []
   let transactions: any[] = []
@@ -132,6 +134,11 @@ export async function collectSystemPayload(): Promise<BackupPayload> {
   } catch {}
 
   try {
+    const at = localStorage.getItem('salla_archived_treasury_entities')
+    if (at) archived_treasury = JSON.parse(at)
+  } catch {}
+
+  try {
     const a = localStorage.getItem('salla_archived_transactions')
     if (a) archived = JSON.parse(a)
   } catch {}
@@ -143,7 +150,7 @@ export async function collectSystemPayload(): Promise<BackupPayload> {
 
   if (window.electronAPI?.getTransactions) {
     try {
-      const res = await window.electronAPI.getTransactions({ page: 1, pageSize: 10000 })
+      const res = await window.electronAPI.getTransactions({ page: 1, pageSize: 100000, status: 'ALL' })
       transactions = res.data || []
     } catch {
       transactions = []
@@ -156,6 +163,7 @@ export async function collectSystemPayload(): Promise<BackupPayload> {
     users,
     notes,
     treasury,
+    archived_treasury,
     archived,
     audit_logs,
     transactions,
@@ -231,11 +239,19 @@ export async function restoreSystemState(payload: BackupPayload): Promise<void> 
   if (Array.isArray(payload.treasury)) {
     localStorage.setItem('salla_treasury_custom_entities', JSON.stringify(payload.treasury))
   }
+  if (Array.isArray(payload.archived_treasury)) {
+    localStorage.setItem('salla_archived_treasury_entities', JSON.stringify(payload.archived_treasury))
+  }
   if (Array.isArray(payload.archived)) {
     localStorage.setItem('salla_archived_transactions', JSON.stringify(payload.archived))
   }
   if (Array.isArray(payload.audit_logs)) {
     localStorage.setItem('user_audit_logs', JSON.stringify(payload.audit_logs))
+  }
+
+  // Restore transactions to SQLite / Mock storage
+  if (Array.isArray(payload.transactions) && window.electronAPI?.restoreAllTransactions) {
+    await window.electronAPI.restoreAllTransactions(payload.transactions)
   }
 
   // Force page reload to apply full restored state seamlessly

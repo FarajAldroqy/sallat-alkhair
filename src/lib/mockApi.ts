@@ -312,5 +312,10 @@ export function initMockElectronAPI() {
       saveStoredTransactions(updated)
       return { success: true, updatedCount }
     },
+
+    restoreAllTransactions: async (txs: Transaction[]) => {
+      saveStoredTransactions(txs || [])
+      return { success: true, restoredCount: txs?.length ?? 0 }
+    },
   }
 }

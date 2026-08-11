@@ -31,20 +31,50 @@
     ],
     "artifactName": "${productName}-Mac-${version}.${ext}"
   },
+  // The installer is the primary deliverable; portable stays as a fallback for
+  // machines where software cannot be installed at all. Both targets previously
+  // emitted "${productName}.${ext}" and would have overwritten each other, so each
+  // now carries a distinct, versioned artifact name.
   "win": {
     "icon": "build/icon.ico",
     "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      },
       {
         "target": "portable",
         "arch": [
           "x64"
         ]
       }
-    ],
-    "artifactName": "${productName}.${ext}"
+    ]
+  },
+  "nsis": {
+    // perMachine:false installs to %LOCALAPPDATA%, so no UAC/admin prompt is needed.
+    "perMachine": false,
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "منظومة سلة الخير",
+    "uninstallDisplayName": "منظومة سلة الخير للمعاملات المالية",
+    "runAfterFinish": true,
+    // The SQLite database lives in app.getPath('userData'), outside the install
+    // directory. Keep it on uninstall — this is financial data.
+    "deleteAppDataOnUninstall": false,
+    "language": "1025",
+    // Blockmaps only serve electron-updater delta downloads, which this app does not
+    // use. Generating one forces a differential-friendly (weaker) compression on the
+    // staged archive that the portable target also reuses, costing ~12MB on both
+    // artifacts. Re-enable this if auto-update is ever added.
+    "differentialPackage": false,
+    "artifactName": "${productName}-Setup-${version}.${ext}"
   },
   "portable": {
-    "artifactName": "${productName}.${ext}"
+    "artifactName": "${productName}-Portable-${version}.${ext}"
   },
   "linux": {
     "target": [

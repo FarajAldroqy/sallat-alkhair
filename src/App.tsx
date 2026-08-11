@@ -89,7 +89,22 @@ export default function App() {
   // Archive Drawer & Rows State
   const [isArchiveOpen, setIsArchiveOpen] = useState(false)
   const [archivedDashboardRows, setArchivedDashboardRows] = useState<Transaction[]>([])
-  const [archivedTreasuryRows, setArchivedTreasuryRows] = useState<EntityBalance[]>([])
+  const [archivedTreasuryRows, setArchivedTreasuryRows] = useState<EntityBalance[]>(() => {
+    try {
+      const saved = localStorage.getItem('salla_archived_treasury_entities')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('salla_archived_treasury_entities', JSON.stringify(archivedTreasuryRows))
+    } catch (e) {
+      console.error('Failed to save archived treasury entities:', e)
+    }
+  }, [archivedTreasuryRows])
 
   // Trash Drawer & Rows State (Recycle Bin)
   const [isTrashOpen, setIsTrashOpen] = useState(false)
@@ -303,6 +318,7 @@ export default function App() {
         return (
           <TreasuryView
             dateFilter={dateFilter}
+            archivedTreasuryRows={archivedTreasuryRows}
             onArchiveEntity={(entity) => {
               setArchivedTreasuryRows((prev) => [...prev.filter((r) => r.name !== entity.name), entity])
             }}

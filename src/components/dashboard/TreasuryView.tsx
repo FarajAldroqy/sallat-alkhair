@@ -34,6 +34,7 @@ interface EntityBalance {
 
 interface TreasuryViewProps {
   dateFilter?: DateFilter
+  archivedTreasuryRows?: EntityBalance[]
   onArchiveEntity?: (entity: EntityBalance) => void
   onDeleteEntity?: (entity: EntityBalance) => void
 }
@@ -226,7 +227,7 @@ export function KryptoniteFishbowl({
   );
 }
 
-export function TreasuryView({ dateFilter, onArchiveEntity, onDeleteEntity }: TreasuryViewProps) {
+export function TreasuryView({ dateFilter, archivedTreasuryRows = [], onArchiveEntity, onDeleteEntity }: TreasuryViewProps) {
   const { hasPermission } = usePermission()
   const canManageTreasury = hasPermission('manage_treasury')
   const canDeleteItems = hasPermission('delete_items')
@@ -516,7 +517,8 @@ export function TreasuryView({ dateFilter, onArchiveEntity, onDeleteEntity }: Tr
       map.set(name, existing)
     })
 
-    let list = Array.from(map.values())
+    const archivedNamesSet = new Set(archivedTreasuryRows.map((r) => r.name))
+    let list = Array.from(map.values()).filter((e) => !archivedNamesSet.has(e.name))
 
     // Apply Advanced Filters (deposit range, withdrawal range, net range)
     const { minDeposit, maxDeposit, minWithdrawal, maxWithdrawal, minNet, maxNet, sortBy, sortOrder } = advancedFilter

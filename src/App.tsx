@@ -257,12 +257,27 @@ export default function App() {
     await fetchStats()
   }
 
+  const removeCustomEntityFromLocalStorage = (name: string) => {
+    try {
+      const saved = localStorage.getItem('salla_treasury_custom_entities')
+      if (saved) {
+        const list: string[] = JSON.parse(saved)
+        const updated = list.filter((n) => n.trim().toLowerCase() !== name.trim().toLowerCase())
+        localStorage.setItem('salla_treasury_custom_entities', JSON.stringify(updated))
+      }
+    } catch (e) {
+      console.error('Failed to update salla_treasury_custom_entities on permanent delete:', e)
+    }
+  }
+
   const handlePermanentDeleteTreasuryEntity = async (name: string) => {
     if (window.electronAPI?.deleteEntityTransactions) {
       await window.electronAPI.deleteEntityTransactions(name, true)
       await fetchStats()
     }
+    removeCustomEntityFromLocalStorage(name)
     setArchivedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
+    setDeletedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
   }
 
   // --- Trash / Soft Delete Handlers ---
@@ -295,7 +310,9 @@ export default function App() {
       await window.electronAPI.deleteEntityTransactions(name, true)
       await fetchStats()
     }
+    removeCustomEntityFromLocalStorage(name)
     setDeletedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
+    setArchivedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
   }
 
   const totalArchivedCount = archivedDashboardRows.length + archivedTreasuryRows.length

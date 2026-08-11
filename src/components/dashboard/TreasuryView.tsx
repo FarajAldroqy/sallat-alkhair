@@ -331,6 +331,20 @@ export function TreasuryView({ dateFilter, archivedTreasuryRows = [], deletedTre
     }
   }, [customEntities])
 
+  // Re-sync customEntities from localStorage when deleted/archived lists change (e.g. permanent deletion in Trash)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('salla_treasury_custom_entities')
+      if (saved) {
+        setCustomEntities(JSON.parse(saved))
+      } else {
+        setCustomEntities([])
+      }
+    } catch {
+      setCustomEntities([])
+    }
+  }, [deletedTreasuryRows, archivedTreasuryRows])
+
   // Click-outside and Escape key listener to dismiss swiped row or open drawer
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

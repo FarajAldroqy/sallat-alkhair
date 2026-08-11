@@ -14,6 +14,7 @@ export interface BackupPayload {
   transactions: any[]
   treasury: any[]
   archived_treasury?: any[]
+  deleted_treasury?: any[]
   archived: any[]
   audit_logs: any[]
 }
@@ -114,6 +115,7 @@ export async function collectSystemPayload(): Promise<BackupPayload> {
   let notes = []
   let treasury = []
   let archived_treasury = []
+  let deleted_treasury = []
   let archived = []
   let audit_logs = []
   let transactions: any[] = []
@@ -136,6 +138,11 @@ export async function collectSystemPayload(): Promise<BackupPayload> {
   try {
     const at = localStorage.getItem('salla_archived_treasury_entities')
     if (at) archived_treasury = JSON.parse(at)
+  } catch {}
+
+  try {
+    const dt = localStorage.getItem('salla_deleted_treasury_entities')
+    if (dt) deleted_treasury = JSON.parse(dt)
   } catch {}
 
   try {
@@ -164,6 +171,7 @@ export async function collectSystemPayload(): Promise<BackupPayload> {
     notes,
     treasury,
     archived_treasury,
+    deleted_treasury,
     archived,
     audit_logs,
     transactions,
@@ -241,6 +249,9 @@ export async function restoreSystemState(payload: BackupPayload): Promise<void> 
   }
   if (Array.isArray(payload.archived_treasury)) {
     localStorage.setItem('salla_archived_treasury_entities', JSON.stringify(payload.archived_treasury))
+  }
+  if (Array.isArray(payload.deleted_treasury)) {
+    localStorage.setItem('salla_deleted_treasury_entities', JSON.stringify(payload.deleted_treasury))
   }
   if (Array.isArray(payload.archived)) {
     localStorage.setItem('salla_archived_transactions', JSON.stringify(payload.archived))

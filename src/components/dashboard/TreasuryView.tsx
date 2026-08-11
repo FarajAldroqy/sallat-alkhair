@@ -35,6 +35,7 @@ interface EntityBalance {
 interface TreasuryViewProps {
   dateFilter?: DateFilter
   archivedTreasuryRows?: EntityBalance[]
+  deletedTreasuryRows?: EntityBalance[]
   onArchiveEntity?: (entity: EntityBalance) => void
   onDeleteEntity?: (entity: EntityBalance) => void
 }
@@ -227,7 +228,7 @@ export function KryptoniteFishbowl({
   );
 }
 
-export function TreasuryView({ dateFilter, archivedTreasuryRows = [], onArchiveEntity, onDeleteEntity }: TreasuryViewProps) {
+export function TreasuryView({ dateFilter, archivedTreasuryRows = [], deletedTreasuryRows = [], onArchiveEntity, onDeleteEntity }: TreasuryViewProps) {
   const { hasPermission } = usePermission()
   const canManageTreasury = hasPermission('manage_treasury')
   const canDeleteItems = hasPermission('delete_items')
@@ -518,7 +519,10 @@ export function TreasuryView({ dateFilter, archivedTreasuryRows = [], onArchiveE
     })
 
     const archivedNamesSet = new Set(archivedTreasuryRows.map((r) => r.name))
-    let list = Array.from(map.values()).filter((e) => !archivedNamesSet.has(e.name))
+    const deletedNamesSet = new Set(deletedTreasuryRows.map((r) => r.name))
+    let list = Array.from(map.values()).filter(
+      (e) => !archivedNamesSet.has(e.name) && !deletedNamesSet.has(e.name)
+    )
 
     // Apply Advanced Filters (deposit range, withdrawal range, net range)
     const { minDeposit, maxDeposit, minWithdrawal, maxWithdrawal, minNet, maxNet, sortBy, sortOrder } = advancedFilter
@@ -573,7 +577,7 @@ export function TreasuryView({ dateFilter, archivedTreasuryRows = [], onArchiveE
       if (pinA !== pinB) return pinB - pinA
       return 0
     })
-  }, [filteredTransactions, pinnedEntities, advancedFilter, customEntities, archivedTreasuryRows])
+  }, [filteredTransactions, pinnedEntities, advancedFilter, customEntities, archivedTreasuryRows, deletedTreasuryRows])
 
   // Filtered entity balances based on search query
   const filteredEntities = useMemo(() => {

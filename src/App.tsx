@@ -109,7 +109,22 @@ export default function App() {
   // Trash Drawer & Rows State (Recycle Bin)
   const [isTrashOpen, setIsTrashOpen] = useState(false)
   const [deletedDashboardRows, setDeletedDashboardRows] = useState<Transaction[]>([])
-  const [deletedTreasuryRows, setDeletedTreasuryRows] = useState<EntityBalance[]>([])
+  const [deletedTreasuryRows, setDeletedTreasuryRows] = useState<EntityBalance[]>(() => {
+    try {
+      const saved = localStorage.getItem('salla_deleted_treasury_entities')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('salla_deleted_treasury_entities', JSON.stringify(deletedTreasuryRows))
+    } catch (e) {
+      console.error('Failed to save deleted treasury entities:', e)
+    }
+  }, [deletedTreasuryRows])
 
   // Settings Modal State
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -319,6 +334,7 @@ export default function App() {
           <TreasuryView
             dateFilter={dateFilter}
             archivedTreasuryRows={archivedTreasuryRows}
+            deletedTreasuryRows={deletedTreasuryRows}
             onArchiveEntity={(entity) => {
               setArchivedTreasuryRows((prev) => [...prev.filter((r) => r.name !== entity.name), entity])
             }}

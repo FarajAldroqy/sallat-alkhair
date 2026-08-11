@@ -30,46 +30,59 @@ function initDatabase() {
   db = new Database(dbPath)
 
   // Enable WAL mode for better performance
-  db.pragma('journal_mode = WAL')
-  db.pragma('foreign_keys = ON')
+  try { db.pragma('journal_mode = WAL') } catch {}
+  try { db.pragma('foreign_keys = ON') } catch {}
 
-  // Create transactions table
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS transactions (
-      id             INTEGER PRIMARY KEY AUTOINCREMENT,
-      client_name    TEXT    NOT NULL,
-      type           TEXT    NOT NULL CHECK(type IN ('DEPOSIT', 'WITHDRAWAL')),
-      amount_cents    BIGINT  NOT NULL,
-      payment_method TEXT    NOT NULL DEFAULT 'نقداً',
-      status         TEXT    NOT NULL DEFAULT 'COMPLETED',
-      is_pinned      INTEGER NOT NULL DEFAULT 0,
-      is_archived    INTEGER NOT NULL DEFAULT 0,
-      created_at     TEXT    NOT NULL DEFAULT (datetime('now'))
-    )
-  `)
-
-  // Performance Indexes
-  db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_tx_list ON transactions(is_archived, is_pinned DESC, created_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_tx_search ON transactions(client_name, type);
-    CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(is_deleted, is_archived, created_at DESC);
-  `)
-
-  // Migration: check if columns exist for existing database
-  const tableInfo = db.pragma('table_info(transactions)') as { name: string }[]
-  const colNames = new Set(tableInfo.map((col) => col.name))
-
-  if (!colNames.has('payment_method')) {
-    try { db.exec(`ALTER TABLE transactions ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'نقداً'`) } catch {}
+  // Create transactions table with all schema columns
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS transactions (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_name    TEXT    NOT NULL,
+        type           TEXT    NOT NULL CHECK(type IN ('DEPOSIT', 'WITHDRAWAL')),
+        amount_cents   BIGINT  NOT NULL,
+        payment_method TEXT    NOT NULL DEFAULT 'نقداً',
+        status         TEXT    NOT NULL DEFAULT 'COMPLETED',
+        is_pinned      INTEGER NOT NULL DEFAULT 0,
+        is_archived    INTEGER NOT NULL DEFAULT 0,
+        is_deleted     INTEGER NOT NULL DEFAULT 0,
+        created_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+      )
+    `)
+  } catch (e) {
+    console.error('Failed to create transactions table:', e)
   }
-  if (!colNames.has('is_pinned')) {
-    try { db.exec(`ALTER TABLE transactions ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0`) } catch {}
+
+  // Migration FIRST: check and add missing columns for existing database
+  try {
+    const tableInfo = db.pragma('table_info(transactions)') as { name: string }[]
+    const colNames = new Set(tableInfo.map((col) => col.name))
+
+    if (!colNames.has('payment_method')) {
+      try { db.exec(`ALTER TABLE transactions ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'نقداً'`) } catch {}
+    }
+    if (!colNames.has('is_pinned')) {
+      try { db.exec(`ALTER TABLE transactions ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0`) } catch {}
+    }
+    if (!colNames.has('is_archived')) {
+      try { db.exec(`ALTER TABLE transactions ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`) } catch {}
+    }
+    if (!colNames.has('is_deleted')) {
+      try { db.exec(`ALTER TABLE transactions ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0`) } catch {}
+    }
+  } catch (e) {
+    console.error('Migration error:', e)
   }
-  if (!colNames.has('is_archived')) {
-    try { db.exec(`ALTER TABLE transactions ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`) } catch {}
-  }
-  if (!colNames.has('is_deleted')) {
-    try { db.exec(`ALTER TABLE transactions ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0`) } catch {}
+
+  // Performance Indexes AFTER columns are guaranteed to exist
+  try {
+    db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_tx_list ON transactions(is_archived, is_pinned DESC, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_tx_search ON transactions(client_name, type);
+      CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(is_deleted, is_archived, created_at DESC);
+    `)
+  } catch (e) {
+    console.error('Index creation error:', e)
   }
 }
 
@@ -152,17 +165,52 @@ function registerIpcHandlers() {
     try {
       const paymentMethod = payload.payment_method || 'نقداً'
       const status = payload.status || 'COMPLETED'
-      const stmt = db.prepare(`
-        INSERT INTO transactions (client_name, type, amount_cents, payment_method, status, is_pinned, is_archived, is_deleted)
-        VALUES (?, ?, ?, ?, ?, 0, 0, 0)
-      `)
-      const result = stmt.run(
-        payload.client_name,
-        payload.type,
-        payload.amount_cents,
-        paymentMethod,
-        status
-      )
+
+      // Self-healing migration check for all columns
+      try {
+        const info = db.pragma('table_info(transactions)') as { name: string }[]
+        const colNames = new Set(info.map((c) => c.name))
+        if (!colNames.has('payment_method')) {
+          try { db.exec(`ALTER TABLE transactions ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'نقداً'`) } catch {}
+        }
+        if (!colNames.has('is_pinned')) {
+          try { db.exec(`ALTER TABLE transactions ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0`) } catch {}
+        }
+        if (!colNames.has('is_archived')) {
+          try { db.exec(`ALTER TABLE transactions ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`) } catch {}
+        }
+        if (!colNames.has('is_deleted')) {
+          try { db.exec(`ALTER TABLE transactions ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0`) } catch {}
+        }
+      } catch {}
+
+      let result: any
+      try {
+        const stmt = db.prepare(`
+          INSERT INTO transactions (client_name, type, amount_cents, payment_method, status, is_pinned, is_archived, is_deleted)
+          VALUES (?, ?, ?, ?, ?, 0, 0, 0)
+        `)
+        result = stmt.run(
+          payload.client_name,
+          payload.type,
+          payload.amount_cents,
+          paymentMethod,
+          status
+        )
+      } catch {
+        const stmtFallback = db.prepare(`
+          INSERT INTO transactions (client_name, type, amount_cents, payment_method, status)
+          VALUES (?, ?, ?, ?, ?)
+        `)
+        result = stmtFallback.run(
+          payload.client_name,
+          payload.type,
+          payload.amount_cents,
+          paymentMethod,
+          status
+        )
+      }
+
       return db.prepare('SELECT * FROM transactions WHERE id = ?').get(result.lastInsertRowid)
     } catch (err: any) {
       console.error('Failed to create transaction:', err)

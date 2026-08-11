@@ -279,6 +279,9 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
     )
     if (window.electronAPI?.createTransaction) {
       const newTx = await window.electronAPI.createTransaction(payload)
+      if ((newTx as any)?.error) {
+        throw new Error((newTx as any).error)
+      }
       setPage(1)
       await fetchData()
       onStatsRefresh()

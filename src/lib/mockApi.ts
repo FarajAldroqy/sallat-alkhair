@@ -56,7 +56,19 @@ function getStoredTransactions(): Transaction[] {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_TRANSACTIONS))
       return INITIAL_TRANSACTIONS
     }
-    return JSON.parse(raw)
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_TRANSACTIONS))
+      return INITIAL_TRANSACTIONS
+    }
+    return parsed.map((t, idx) => ({
+      ...t,
+      id: typeof t.id === 'number' && !isNaN(t.id) ? t.id : idx + 1,
+      is_pinned: t.is_pinned ?? 0,
+      is_archived: t.is_archived ?? 0,
+      is_deleted: t.is_deleted ?? 0,
+      payment_method: t.payment_method || 'نقداً',
+    }))
   } catch {
     return INITIAL_TRANSACTIONS
   }
@@ -97,7 +109,7 @@ export function initMockElectronAPI() {
       }
 
       if (search) {
-        all = all.filter((t) => t.client_name.toLowerCase().includes(search))
+        all = all.filter((t) => t.client_name && t.client_name.toLowerCase().includes(search))
       }
 
       if (type !== 'ALL') {
@@ -120,12 +132,15 @@ export function initMockElectronAPI() {
 
     createTransaction: async (payload: TransactionCreate): Promise<Transaction> => {
       const all = getStoredTransactions()
-      const maxId = all.reduce((max, t) => Math.max(max, t.id), 0)
+      const maxId = all.reduce((max, t) => {
+        const validId = typeof t.id === 'number' && !isNaN(t.id) ? t.id : 0
+        return Math.max(max, validId)
+      }, 0)
       const newTx: Transaction = {
         id: maxId + 1,
-        client_name: payload.client_name,
+        client_name: payload.client_name.trim(),
         type: payload.type,
-        amount_cents: payload.amount_cents,
+        amount_cents: Number(payload.amount_cents) || 0,
         payment_method: payload.payment_method || 'نقداً',
         status: payload.status || 'COMPLETED',
         is_pinned: 0,

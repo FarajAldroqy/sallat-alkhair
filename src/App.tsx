@@ -237,7 +237,10 @@ export default function App() {
 
   // --- Archive Handlers ---
   const handleRestoreDashboardRow = async (id: number) => {
-    if (window.electronAPI?.archiveTransaction) {
+    if (window.electronAPI?.restoreTransaction) {
+      await window.electronAPI.restoreTransaction(id)
+      await fetchStats()
+    } else if (window.electronAPI?.archiveTransaction) {
       await window.electronAPI.archiveTransaction(id)
       await fetchStats()
     }

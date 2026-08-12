@@ -196,11 +196,6 @@ export function AccountSettings({ onLogout }: AccountSettingsProps) {
       alert('لا يمكنك حذف الحساب النشط حالياً الذي تستخدمه لتسجيل الدخول')
       return
     }
-    
-    if (targetUser && targetUser.username.toLowerCase() === 'admin') {
-      alert('لا يمكن حذف حساب المسؤول الرئيسي admin')
-      return
-    }
 
     if (confirm(`هل أنت تأكد من رغبتك في حذف الحساب (${targetUser?.username})؟`)) {
       if (targetUser) {

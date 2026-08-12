@@ -261,9 +261,15 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
           {/* Footer Subtext */}
           <div className="text-center pt-2">
-            <p className="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium">
-              الاسم الافتراضي: <span className="font-mono text-zinc-700 dark:text-zinc-300">admin</span> | السر: <span className="font-mono text-zinc-700 dark:text-zinc-300">admin</span>
-            </p>
+            {getStoredUsers().some((u) => u.username.toLowerCase() === 'admin') ? (
+              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium">
+                الاسم الافتراضي: <span className="font-mono text-zinc-700 dark:text-zinc-300">admin</span> | السر: <span className="font-mono text-zinc-700 dark:text-zinc-300">admin</span>
+              </p>
+            ) : (
+              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium">
+                تطوير: <span className="font-bold text-zinc-700 dark:text-zinc-300">Faraj Aldroqy</span>
+              </p>
+            )}
           </div>
         </div>
       </div>

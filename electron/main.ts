@@ -330,6 +330,75 @@ function registerIpcHandlers() {
     }
   })
 
+  // --- BATCH IPC HANDLERS FOR LIGHTNING-FAST BULK OPERATIONS ---
+  ipcMain.handle('db:delete-transactions-batch', (_event, ids: number[], permanent?: boolean) => {
+    try {
+      if (!Array.isArray(ids) || ids.length === 0) return { success: true, count: 0 }
+      const placeholders = ids.map(() => '?').join(',')
+      if (permanent) {
+        db.prepare(`DELETE FROM transactions WHERE id IN (${placeholders})`).run(...ids)
+      } else {
+        db.prepare(`UPDATE transactions SET is_deleted = 1 WHERE id IN (${placeholders})`).run(...ids)
+      }
+      return { success: true, count: ids.length }
+    } catch (err: any) {
+      console.error('Failed batch delete transactions:', err)
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('db:archive-transactions-batch', (_event, ids: number[]) => {
+    try {
+      if (!Array.isArray(ids) || ids.length === 0) return { success: true, count: 0 }
+      const placeholders = ids.map(() => '?').join(',')
+      db.prepare(`UPDATE transactions SET is_archived = 1 WHERE id IN (${placeholders}) AND is_deleted = 0`).run(...ids)
+      return { success: true, count: ids.length }
+    } catch (err: any) {
+      console.error('Failed batch archive transactions:', err)
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('db:restore-transactions-batch', (_event, ids: number[]) => {
+    try {
+      if (!Array.isArray(ids) || ids.length === 0) return { success: true, count: 0 }
+      const placeholders = ids.map(() => '?').join(',')
+      db.prepare(`UPDATE transactions SET is_deleted = 0, is_archived = 0 WHERE id IN (${placeholders})`).run(...ids)
+      return { success: true, count: ids.length }
+    } catch (err: any) {
+      console.error('Failed batch restore transactions:', err)
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('db:delete-entities-batch', (_event, clientNames: string[], permanent?: boolean) => {
+    try {
+      if (!Array.isArray(clientNames) || clientNames.length === 0) return { success: true, count: 0 }
+      const placeholders = clientNames.map(() => '?').join(',')
+      if (permanent) {
+        db.prepare(`DELETE FROM transactions WHERE client_name IN (${placeholders})`).run(...clientNames)
+      } else {
+        db.prepare(`UPDATE transactions SET is_deleted = 1 WHERE client_name IN (${placeholders})`).run(...clientNames)
+      }
+      return { success: true, count: clientNames.length }
+    } catch (err: any) {
+      console.error('Failed batch delete entities:', err)
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('db:restore-entities-batch', (_event, clientNames: string[]) => {
+    try {
+      if (!Array.isArray(clientNames) || clientNames.length === 0) return { success: true, count: 0 }
+      const placeholders = clientNames.map(() => '?').join(',')
+      db.prepare(`UPDATE transactions SET is_deleted = 0, is_archived = 0 WHERE client_name IN (${placeholders})`).run(...clientNames)
+      return { success: true, count: clientNames.length }
+    } catch (err: any) {
+      console.error('Failed batch restore entities:', err)
+      return { success: false, error: err.message }
+    }
+  })
+
   // POST /restore-entity-transactions – restore all entity transactions
   ipcMain.handle('db:restore-entity-transactions', (_event, clientName: string) => {
     try {

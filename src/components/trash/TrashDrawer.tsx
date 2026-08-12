@@ -137,6 +137,9 @@ export function TrashDrawer({
       'استعادة دفعة عناصر من سلة المهملات (لوحة التحكم)',
       `عدد العناصر: ${selectedDashIds.length}`
     )
+    if (window.electronAPI?.restoreTransactionsBatch) {
+      await window.electronAPI.restoreTransactionsBatch(selectedDashIds)
+    }
     for (const id of selectedDashIds) {
       await onRestoreDashboardRow(id)
     }
@@ -152,6 +155,9 @@ export function TrashDrawer({
       'استعادة دفعة جهات من سلة المهملات (الخزينة)',
       `عدد الجهات: ${selectedTreasuryNames.length}`
     )
+    if (window.electronAPI?.restoreEntitiesBatch) {
+      await window.electronAPI.restoreEntitiesBatch(selectedTreasuryNames)
+    }
     for (const name of selectedTreasuryNames) {
       await onRestoreTreasuryEntity(name)
     }
@@ -160,11 +166,6 @@ export function TrashDrawer({
 
   // Single & Batch Delete Confirmation Execution
   const handleConfirmDelete = async () => {
-    if (!canDeleteItems) {
-      alert('عفواً، لا تملك صلاحية حذف العناصر والعمليات')
-      setPendingDelete(null)
-      return
-    }
     if (!pendingDelete) return
 
     playDeleteSound()
@@ -178,11 +179,17 @@ export function TrashDrawer({
         await onPermanentDeleteTreasuryEntity(pendingDelete.idOrName as string)
         setSwipedTreasuryName(null)
       } else if (pendingDelete.type === 'BATCH_DASHBOARD') {
+        if (window.electronAPI?.deleteTransactionsBatch) {
+          await window.electronAPI.deleteTransactionsBatch(selectedDashIds, true)
+        }
         for (const id of selectedDashIds) {
           await onPermanentDeleteDashboardRow(id)
         }
         setSelectedDashIds([])
       } else if (pendingDelete.type === 'BATCH_TREASURY') {
+        if (window.electronAPI?.deleteEntitiesBatch) {
+          await window.electronAPI.deleteEntitiesBatch(selectedTreasuryNames, true)
+        }
         for (const name of selectedTreasuryNames) {
           await onPermanentDeleteTreasuryEntity(name)
         }

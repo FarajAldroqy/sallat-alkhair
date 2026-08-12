@@ -47,6 +47,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
   restoreAllTransactions: (txs: Transaction[]): Promise<{ success: boolean; restoredCount?: number; error?: string }> =>
     ipcRenderer.invoke('db:restore-all-transactions', txs),
 
+  deleteTransactionsBatch: (ids: number[], permanent?: boolean): Promise<{ success: boolean; count?: number; error?: string }> =>
+    ipcRenderer.invoke('db:delete-transactions-batch', ids, permanent),
+
+  archiveTransactionsBatch: (ids: number[]): Promise<{ success: boolean; count?: number; error?: string }> =>
+    ipcRenderer.invoke('db:archive-transactions-batch', ids),
+
+  restoreTransactionsBatch: (ids: number[]): Promise<{ success: boolean; count?: number; error?: string }> =>
+    ipcRenderer.invoke('db:restore-transactions-batch', ids),
+
+  deleteEntitiesBatch: (clientNames: string[], permanent?: boolean): Promise<{ success: boolean; count?: number; error?: string }> =>
+    ipcRenderer.invoke('db:delete-entities-batch', clientNames, permanent),
+
+  restoreEntitiesBatch: (clientNames: string[]): Promise<{ success: boolean; count?: number; error?: string }> =>
+    ipcRenderer.invoke('db:restore-entities-batch', clientNames),
+
   onRequestAutoBackup: (callback: () => void) => {
     ipcRenderer.on('app:request-auto-backup', () => callback())
   },

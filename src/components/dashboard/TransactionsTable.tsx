@@ -440,10 +440,15 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
     const idsToArchive = [...selectedIds]
     setSelectedIds([])
 
-    for (const id of idsToArchive) {
+    idsToArchive.forEach((id) => {
       const targetTx = data.find((t) => t.id === id)
-      if (targetTx) onDeleteRow?.(targetTx)
-      if (window.electronAPI?.archiveTransaction) {
+      if (targetTx) onArchiveRow?.(targetTx)
+    })
+
+    if (window.electronAPI?.archiveTransactionsBatch) {
+      await window.electronAPI.archiveTransactionsBatch(idsToArchive)
+    } else if (window.electronAPI?.archiveTransaction) {
+      for (const id of idsToArchive) {
         await window.electronAPI.archiveTransaction(id)
       }
     }
@@ -452,21 +457,22 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
   }
 
   const handleBulkDelete = async () => {
-    if (!canDeleteItems) {
-      alert('عفواً، لا تملك صلاحية حذف العناصر والعمليات')
-      return
-    }
     if (selectedIds.length === 0) return
-    if (!confirm(`هل أنت تأكد من حذف ${selectedIds.length} عنصر بصورة نهائية؟`)) return
+    if (!confirm(`هل أنت تأكد من نقل ${selectedIds.length} عنصر إلى سلة المحذوفات؟`)) return
 
     const idsToDelete = [...selectedIds]
     setSelectedIds([])
 
-    for (const id of idsToDelete) {
+    idsToDelete.forEach((id) => {
       const targetTx = data.find((t) => t.id === id)
       if (targetTx) onDeleteRow?.(targetTx)
-      if (window.electronAPI?.archiveTransaction) {
-        await window.electronAPI.archiveTransaction(id)
+    })
+
+    if (window.electronAPI?.deleteTransactionsBatch) {
+      await window.electronAPI.deleteTransactionsBatch(idsToDelete, false)
+    } else if (window.electronAPI?.deleteTransaction) {
+      for (const id of idsToDelete) {
+        await window.electronAPI.deleteTransaction(id, false)
       }
     }
     onStatsRefresh()

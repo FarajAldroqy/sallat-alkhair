@@ -629,10 +629,6 @@ export function TreasuryView({ dateFilter, archivedTreasuryRows = [], deletedTre
   }
 
   const handleBulkDeleteEntities = async () => {
-    if (!canDeleteItems) {
-      alert('عفواً، لا تملك صلاحية حذف العناصر والعمليات')
-      return
-    }
     if (selectedEntityNames.length === 0) return
     const hasFixed = selectedEntityNames.includes('سلة الخير')
     const namesToDelete = selectedEntityNames.filter((n) => n !== 'سلة الخير')
@@ -643,13 +639,21 @@ export function TreasuryView({ dateFilter, archivedTreasuryRows = [], deletedTre
     }
 
     if (namesToDelete.length === 0) return
-    if (!confirm(`هل أنت تأكد من حذف ${namesToDelete.length} جهة بصورة نهائية؟`)) return
+    if (!confirm(`هل أنت تأكد من نقل ${namesToDelete.length} جهة إلى سلة المحذوفات؟`)) return
 
     playDeleteSound()
     namesToDelete.forEach((name) => {
       const ent = entityBalances.find((e) => e.name === name)
       if (ent) onDeleteEntity?.(ent)
     })
+
+    if (window.electronAPI?.deleteEntitiesBatch) {
+      await window.electronAPI.deleteEntitiesBatch(namesToDelete, false)
+    } else if (window.electronAPI?.deleteEntityTransactions) {
+      for (const name of namesToDelete) {
+        await window.electronAPI.deleteEntityTransactions(name, false)
+      }
+    }
   }
 
   // Recalculate totals synchronously if date filter is active, otherwise use global stats

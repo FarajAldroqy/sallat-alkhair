@@ -317,5 +317,53 @@ export function initMockElectronAPI() {
       saveStoredTransactions(txs || [])
       return { success: true, restoredCount: txs?.length ?? 0 }
     },
+
+    deleteTransactionsBatch: async (ids: number[], permanent?: boolean) => {
+      let all = getStoredTransactions()
+      const set = new Set(ids)
+      if (permanent) {
+        all = all.filter((t) => !set.has(t.id))
+      } else {
+        all = all.map((t) => (set.has(t.id) ? { ...t, is_deleted: 1 } : t))
+      }
+      saveStoredTransactions(all)
+      return { success: true, count: ids.length }
+    },
+
+    archiveTransactionsBatch: async (ids: number[]) => {
+      const all = getStoredTransactions()
+      const set = new Set(ids)
+      const updated = all.map((t) => (set.has(t.id) ? { ...t, is_archived: 1 } : t))
+      saveStoredTransactions(updated)
+      return { success: true, count: ids.length }
+    },
+
+    restoreTransactionsBatch: async (ids: number[]) => {
+      const all = getStoredTransactions()
+      const set = new Set(ids)
+      const updated = all.map((t) => (set.has(t.id) ? { ...t, is_deleted: 0, is_archived: 0 } : t))
+      saveStoredTransactions(updated)
+      return { success: true, count: ids.length }
+    },
+
+    deleteEntitiesBatch: async (clientNames: string[], permanent?: boolean) => {
+      let all = getStoredTransactions()
+      const set = new Set(clientNames.map((n) => n.trim()))
+      if (permanent) {
+        all = all.filter((t) => !set.has(t.client_name.trim()))
+      } else {
+        all = all.map((t) => (set.has(t.client_name.trim()) ? { ...t, is_deleted: 1 } : t))
+      }
+      saveStoredTransactions(all)
+      return { success: true, count: clientNames.length }
+    },
+
+    restoreEntitiesBatch: async (clientNames: string[]) => {
+      const all = getStoredTransactions()
+      const set = new Set(clientNames.map((n) => n.trim()))
+      const updated = all.map((t) => (set.has(t.client_name.trim()) ? { ...t, is_deleted: 0, is_archived: 0 } : t))
+      saveStoredTransactions(updated)
+      return { success: true, count: clientNames.length }
+    },
   }
 }

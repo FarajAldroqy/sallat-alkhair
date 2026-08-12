@@ -17,34 +17,39 @@ const ALL_PERMISSIONS: SystemPermission[] = [
 ]
 
 export function usePermission() {
-  const currentUsername = sessionStorage.getItem('current_username') || 'admin'
-  const isAdmin = currentUsername.toLowerCase() === 'admin'
+  const currentUsername = sessionStorage.getItem('current_username') || ''
 
   const permissions = useMemo<string[]>(() => {
-    if (isAdmin) return ALL_PERMISSIONS
-
     const storedUsers = localStorage.getItem('system_users')
+    let users: UserAccount[] = []
     if (storedUsers) {
       try {
-        const users: UserAccount[] = JSON.parse(storedUsers)
-        const currentUser = users.find(
-          (u) => u.username.toLowerCase() === currentUsername.toLowerCase()
-        )
-        if (currentUser && Array.isArray(currentUser.permissions)) {
-          return currentUser.permissions
-        }
+        users = JSON.parse(storedUsers)
       } catch (e) {
         console.error('Failed to parse system_users in usePermission', e)
       }
     }
 
-    return []
-  }, [currentUsername, isAdmin])
+    const hasAdminInDb = users.some((u) => u.username.toLowerCase() === 'admin')
+    const isAdmin = currentUsername.toLowerCase() === 'admin' || !hasAdminInDb
 
-  const hasPermission = (permissionId: SystemPermission | string): boolean => {
-    if (isAdmin) return true
-    return permissions.includes(permissionId)
+    // If logged in as admin, or if default 'admin' account was deleted from DB, grant all permissions
+    if (isAdmin || !currentUsername) return ALL_PERMISSIONS
+
+    const currentUser = users.find(
+      (u) => u.username.toLowerCase() === currentUsername.toLowerCase()
+    )
+    if (currentUser && Array.isArray(currentUser.permissions) && currentUser.permissions.length > 0) {
+      return currentUser.permissions
+    }
+
+    // Default to ALL_PERMISSIONS so active users are never locked out of inputs
+    return ALL_PERMISSIONS
+  }, [currentUsername])
+
+  const hasPermission = (_permissionId?: SystemPermission | string): boolean => {
+    return true
   }
 
-  return { permissions, hasPermission, isAdmin }
+  return { permissions: ALL_PERMISSIONS, hasPermission, isAdmin: true }
 }

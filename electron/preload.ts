@@ -46,6 +46,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   restoreAllTransactions: (txs: Transaction[]): Promise<{ success: boolean; restoredCount?: number; error?: string }> =>
     ipcRenderer.invoke('db:restore-all-transactions', txs),
+
+  onRequestAutoBackup: (callback: () => void) => {
+    ipcRenderer.on('app:request-auto-backup', () => callback())
+  },
+
+  notifyAutoBackupCompleted: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('app:auto-backup-completed'),
 })
 
 // Keep legacy ipcRenderer for backward compatibility

@@ -285,6 +285,19 @@ export function initAutoBackupListener() {
 
   window.addEventListener('beforeunload', handleExit)
 
+  // Listen to IPC auto-backup request from main process when closing window (Windows & macOS)
+  if (window.electronAPI?.onRequestAutoBackup) {
+    window.electronAPI.onRequestAutoBackup(async () => {
+      try {
+        await createBackup('AUTO')
+      } catch (err) {
+        console.error('Window close auto backup failed:', err)
+      } finally {
+        window.electronAPI?.notifyAutoBackupCompleted?.()
+      }
+    })
+  }
+
   // Also create a baseline backup if no backups exist yet
   const existing = getRollingBackups()
   if (existing.length === 0) {

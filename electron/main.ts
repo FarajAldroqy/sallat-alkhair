@@ -134,6 +134,15 @@ function registerIpcHandlers() {
     }
   })
 
+  // POST /auto-backup-completed – renderer completed auto backup on window close
+  ipcMain.handle('app:auto-backup-completed', () => {
+    isQuitting = true
+    if (win && !win.isDestroyed()) {
+      win.destroy()
+    }
+    return { success: true }
+  })
+
   // GET /transactions – paginated + searchable + sorted by is_pinned DESC
   ipcMain.handle('db:get-transactions', (_event, params: {
     page?: number
@@ -443,7 +452,7 @@ function registerIpcHandlers() {
   })
 }
 
-// ─── Window ───────────────────────────────────────────────────────────────────
+let isQuitting = false
 
 function createWindow() {
   win = new BrowserWindow({
@@ -464,6 +473,23 @@ function createWindow() {
 
   win.setMenu(null)
   win.center()
+
+  // Intercept window close to trigger auto-backup in renderer before exit
+  win.on('close', (e) => {
+    if (!isQuitting) {
+      e.preventDefault()
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('app:request-auto-backup')
+      }
+      // Safety fallback timeout (2.5s) if renderer is un-responsive
+      setTimeout(() => {
+        isQuitting = true
+        if (win && !win.isDestroyed()) {
+          win.destroy()
+        }
+      }, 2500)
+    }
+  })
 
   win.webContents.on('did-finish-load', () => {
     win?.webContents.send('main-process-message', (new Date()).toLocaleString())

@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import type { UserAccount } from '@/types'
 import { usePermission } from '@/hooks/usePermission'
 import { logUserAction } from '@/lib/auditLogger'
+import { createBackup } from '@/lib/backupManager'
 
 interface AccountSettingsProps {
   onLogout: () => void
@@ -213,7 +214,12 @@ export function AccountSettings({ onLogout }: AccountSettingsProps) {
   }
 
   // --- SECTION D: Logout ---
-  const handleLogoutAction = () => {
+  const handleLogoutAction = async () => {
+    try {
+      await createBackup('AUTO')
+    } catch (e) {
+      console.error('Logout auto backup failed:', e)
+    }
     sessionStorage.clear()
     onLogout()
   }

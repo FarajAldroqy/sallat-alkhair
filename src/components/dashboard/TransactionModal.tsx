@@ -37,6 +37,7 @@ export function TransactionModal({ open, mode, onClose, onSubmit, entities = [] 
   const [clientName, setClientName] = useState('')
   const [amountStr, setAmountStr] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('نقداً')
+  const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [customEntityMode, setCustomEntityMode] = useState(false)
@@ -47,6 +48,7 @@ export function TransactionModal({ open, mode, onClose, onSubmit, entities = [] 
     setClientName('')
     setAmountStr('')
     setPaymentMethod('نقداً')
+    setNotes('')
     setError('')
     setLoading(false)
     setCustomEntityMode(false)
@@ -83,6 +85,7 @@ export function TransactionModal({ open, mode, onClose, onSubmit, entities = [] 
         type: mode,
         amount_cents: Math.round(amount * 100),
         payment_method: paymentMethod,
+        notes: notes.trim(),
         status: 'COMPLETED',
       })
       reset()
@@ -225,6 +228,22 @@ export function TransactionModal({ open, mode, onClose, onSubmit, entities = [] 
                 <SelectItem value="بطاقة" className="text-xs text-zinc-800 dark:text-zinc-200 font-arabic">بطاقة (Card)</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* 4. سبب الإيداع/السحب (ملاحظات) */}
+          <div className="space-y-1.5">
+            <Label htmlFor="modal-notes" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block text-right">
+              سبب الإيداع/السحب (ملاحظات - اختياري)
+            </Label>
+            <Input
+              id="modal-notes"
+              type="text"
+              placeholder="أدخل سبب المعاملة أو أي ملاحظة..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 rounded-lg font-arabic text-right"
+              autoComplete="off"
+            />
           </div>
 
           {/* Error */}

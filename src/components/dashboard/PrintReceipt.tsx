@@ -148,12 +148,13 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
             </span>
           </div>
 
-          {transaction.notes && (
-            <div className="col-span-2 text-xs text-zinc-700 font-medium pt-0.5">
-              <span className="font-extrabold text-zinc-900">ملاحظات: </span>
-              <span>{transaction.notes}</span>
-            </div>
-          )}
+          {/* Row 4: Reason / Notes */}
+          <div className="space-y-0.5 col-span-2 pt-1 border-t border-zinc-200">
+            <span className="text-zinc-600 font-bold block text-xs">سبب المعاملة / الملاحظات:</span>
+            <span className="font-bold text-xs sm:text-sm text-zinc-950 block">
+              {transaction.notes?.trim() || 'لا توجد ملاحظات مسجلة'}
+            </span>
+          </div>
         </div>
       </div>
 

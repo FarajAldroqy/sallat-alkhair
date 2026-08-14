@@ -142,6 +142,7 @@ export function initMockElectronAPI() {
         type: payload.type,
         amount_cents: Number(payload.amount_cents) || 0,
         payment_method: payload.payment_method || 'نقداً',
+        notes: (payload.notes || '').trim(),
         status: payload.status || 'COMPLETED',
         is_pinned: 0,
         is_archived: 0,
@@ -316,6 +317,14 @@ export function initMockElectronAPI() {
     restoreAllTransactions: async (txs: Transaction[]) => {
       saveStoredTransactions(txs || [])
       return { success: true, restoredCount: txs?.length ?? 0 }
+    },
+
+    updateTransactionNotes: async (p: { id: number; notes: string }) => {
+      const all = getStoredTransactions()
+      const trimmedNotes = (p.notes || '').trim()
+      const updated = all.map((t) => (t.id === p.id ? { ...t, notes: trimmedNotes } : t))
+      saveStoredTransactions(updated)
+      return { success: true, id: p.id, notes: trimmedNotes }
     },
 
     deleteTransactionsBatch: async (ids: number[], permanent?: boolean) => {

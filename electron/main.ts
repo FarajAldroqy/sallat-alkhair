@@ -43,11 +43,20 @@ function initDatabase() {
         amount_cents   BIGINT  NOT NULL,
         payment_method TEXT    NOT NULL DEFAULT 'نقداً',
         status         TEXT    NOT NULL DEFAULT 'COMPLETED',
+        notes          TEXT    NOT NULL DEFAULT '',
         is_pinned      INTEGER NOT NULL DEFAULT 0,
         is_archived    INTEGER NOT NULL DEFAULT 0,
         is_deleted     INTEGER NOT NULL DEFAULT 0,
         created_at     TEXT    NOT NULL DEFAULT (datetime('now'))
-      )
+      );
+
+      CREATE TABLE IF NOT EXISTS transaction_notes (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        transaction_id INTEGER NOT NULL UNIQUE,
+        notes          TEXT    NOT NULL DEFAULT '',
+        updated_at     TEXT    NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY(transaction_id) REFERENCES transactions(id) ON DELETE CASCADE
+      );
     `)
   } catch (e) {
     console.error('Failed to create transactions table:', e)
@@ -60,6 +69,9 @@ function initDatabase() {
 
     if (!colNames.has('payment_method')) {
       try { db.exec(`ALTER TABLE transactions ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'نقداً'`) } catch {}
+    }
+    if (!colNames.has('notes')) {
+      try { db.exec(`ALTER TABLE transactions ADD COLUMN notes TEXT NOT NULL DEFAULT ''`) } catch {}
     }
     if (!colNames.has('is_pinned')) {
       try { db.exec(`ALTER TABLE transactions ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0`) } catch {}
@@ -104,13 +116,19 @@ function registerIpcHandlers() {
   ipcMain.handle('db:restore-all-transactions', (_event, txs: any[]) => {
     try {
       db.exec('DELETE FROM transactions')
+      db.exec('DELETE FROM transaction_notes')
       const stmt = db.prepare(`
-        INSERT INTO transactions (id, client_name, type, amount_cents, payment_method, status, is_pinned, is_archived, is_deleted, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO transactions (id, client_name, type, amount_cents, payment_method, status, notes, is_pinned, is_archived, is_deleted, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `)
+      const noteStmt = db.prepare(`
+        INSERT OR REPLACE INTO transaction_notes (transaction_id, notes)
+        VALUES (?, ?)
       `)
 
       const insertMany = db.transaction((items: any[]) => {
         for (const t of items) {
+          const notesVal = t.notes || ''
           stmt.run(
             t.id,
             t.client_name,
@@ -118,11 +136,15 @@ function registerIpcHandlers() {
             t.amount_cents,
             t.payment_method || 'نقداً',
             t.status || 'COMPLETED',
+            notesVal,
             t.is_pinned ?? 0,
             t.is_archived ?? 0,
             t.is_deleted ?? 0,
             t.created_at || new Date().toISOString()
           )
+          if (notesVal) {
+            try { noteStmt.run(t.id, notesVal) } catch {}
+          }
         }
       })
 
@@ -205,11 +227,13 @@ function registerIpcHandlers() {
     type: string
     amount_cents: number
     payment_method?: string
+    notes?: string
     status?: string
   }) => {
     try {
       const paymentMethod = payload.payment_method || 'نقداً'
       const status = payload.status || 'COMPLETED'
+      const notes = (payload.notes || '').trim()
 
       // Self-healing migration check for all columns
       try {
@@ -217,6 +241,9 @@ function registerIpcHandlers() {
         const colNames = new Set(info.map((c) => c.name))
         if (!colNames.has('payment_method')) {
           try { db.exec(`ALTER TABLE transactions ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'نقداً'`) } catch {}
+        }
+        if (!colNames.has('notes')) {
+          try { db.exec(`ALTER TABLE transactions ADD COLUMN notes TEXT NOT NULL DEFAULT ''`) } catch {}
         }
         if (!colNames.has('is_pinned')) {
           try { db.exec(`ALTER TABLE transactions ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0`) } catch {}
@@ -232,15 +259,16 @@ function registerIpcHandlers() {
       let result: any
       try {
         const stmt = db.prepare(`
-          INSERT INTO transactions (client_name, type, amount_cents, payment_method, status, is_pinned, is_archived, is_deleted)
-          VALUES (?, ?, ?, ?, ?, 0, 0, 0)
+          INSERT INTO transactions (client_name, type, amount_cents, payment_method, status, notes, is_pinned, is_archived, is_deleted)
+          VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0)
         `)
         result = stmt.run(
           payload.client_name,
           payload.type,
           payload.amount_cents,
           paymentMethod,
-          status
+          status,
+          notes
         )
       } catch {
         const stmtFallback = db.prepare(`
@@ -256,10 +284,40 @@ function registerIpcHandlers() {
         )
       }
 
+      if (notes && result?.lastInsertRowid) {
+        try {
+          db.prepare('INSERT OR REPLACE INTO transaction_notes (transaction_id, notes) VALUES (?, ?)').run(result.lastInsertRowid, notes)
+        } catch {}
+      }
+
       return db.prepare('SELECT * FROM transactions WHERE id = ?').get(result.lastInsertRowid)
     } catch (err: any) {
       console.error('Failed to create transaction:', err)
       throw err
+    }
+  })
+
+  // POST /update-transaction-notes – edit or fill notes for an existing transaction
+  ipcMain.handle('db:update-transaction-notes', (_event, payload: { id: number; notes: string }) => {
+    try {
+      const trimmedNotes = (payload.notes || '').trim()
+
+      // Update main transactions table
+      db.prepare('UPDATE transactions SET notes = ? WHERE id = ?').run(trimmedNotes, payload.id)
+
+      // Update relational transaction_notes table
+      try {
+        db.prepare(`
+          INSERT INTO transaction_notes (transaction_id, notes, updated_at)
+          VALUES (?, ?, datetime('now'))
+          ON CONFLICT(transaction_id) DO UPDATE SET notes = excluded.notes, updated_at = datetime('now')
+        `).run(payload.id, trimmedNotes)
+      } catch {}
+
+      return { success: true, id: payload.id, notes: trimmedNotes }
+    } catch (err: any) {
+      console.error('Failed to update transaction notes:', err)
+      return { success: false, error: err.message }
     }
   })
 

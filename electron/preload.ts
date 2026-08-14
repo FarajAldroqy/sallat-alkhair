@@ -47,6 +47,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   restoreAllTransactions: (txs: Transaction[]): Promise<{ success: boolean; restoredCount?: number; error?: string }> =>
     ipcRenderer.invoke('db:restore-all-transactions', txs),
 
+  updateTransactionNotes: (params: { id: number; notes: string }): Promise<{ success: boolean; id?: number; notes?: string; error?: string }> =>
+    ipcRenderer.invoke('db:update-transaction-notes', params),
+
   deleteTransactionsBatch: (ids: number[], permanent?: boolean): Promise<{ success: boolean; count?: number; error?: string }> =>
     ipcRenderer.invoke('db:delete-transactions-batch', ids, permanent),
 

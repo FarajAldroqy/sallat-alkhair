@@ -19,6 +19,7 @@ export interface TransactionCreate {
   type: 'DEPOSIT' | 'WITHDRAWAL'
   amount_cents: number
   payment_method: PaymentMethod | string
+  notes?: string
   status?: 'COMPLETED' | 'PENDING' | 'FAILED' | 'PROCESSING'
 }
 

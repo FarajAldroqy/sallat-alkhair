@@ -4,9 +4,14 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
 import {
   Eye, Printer, Plus, CheckSquare, Filter,
-  ChevronLeft, ChevronRight, Pin, Trash2, Archive,
+  ChevronLeft, ChevronRight, Pin, Trash2, Archive, FileText, Edit3, Loader2,
 } from 'lucide-react'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import { formatCurrency, formatDate, filterTransactionsByDate } from '@/lib/utils'
@@ -398,6 +403,36 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
     }, 50)
   }
 
+  // Edit Transaction Notes State & Handler
+  const [editingNotesTx, setEditingNotesTx] = useState<Transaction | null>(null)
+  const [editingNotesText, setEditingNotesText] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
+
+  const handleOpenEditNotes = (tx: Transaction, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setEditingNotesTx(tx)
+    setEditingNotesText(tx.notes || '')
+  }
+
+  const handleSaveNotes = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingNotesTx) return
+    const newNotes = editingNotesText.trim()
+    setSavingNotes(true)
+    try {
+      if (window.electronAPI?.updateTransactionNotes) {
+        await window.electronAPI.updateTransactionNotes({ id: editingNotesTx.id, notes: newNotes })
+      }
+      setData((prev) => prev.map((t) => (t.id === editingNotesTx.id ? { ...t, notes: newNotes } : t)))
+      logUserAction('EDIT_TRANSACTION', 'مالية', 'تعديل سبب/ملاحظات المعاملة', `جهة: ${editingNotesTx.client_name} | ملاحظة جديدة: ${newNotes}`)
+      setEditingNotesTx(null)
+    } catch (err) {
+      console.error('Failed to update notes:', err)
+    } finally {
+      setSavingNotes(false)
+    }
+  }
+
   // Multi-Row Selection & Bulk Actions State
   const [isSelectionMode, setIsSelectionMode] = useState<boolean>(false)
   const [selectedIds, setSelectedIds] = useState<number[]>([])
@@ -656,19 +691,22 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                     <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-right py-3 font-arabic">
                       اسم الجهة
                     </TableHead>
-                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center py-3 font-arabic w-32">
+                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center py-3 font-arabic w-28">
                       نوع العملية
                     </TableHead>
-                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center py-3 font-arabic w-36">
+                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center py-3 font-arabic w-28">
                       اسلوب الدفع
                     </TableHead>
-                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-right py-3 font-arabic w-40">
+                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-right py-3 font-arabic w-44">
+                      سبب المعاملة / الملاحظات
+                    </TableHead>
+                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-right py-3 font-arabic w-36">
                       القيمة
                     </TableHead>
-                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-right py-3 font-arabic w-44">
+                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-right py-3 font-arabic w-36">
                       التاريخ
                     </TableHead>
-                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center py-3 font-arabic w-28">
+                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center py-3 font-arabic w-24">
                       الإجراء
                     </TableHead>
                   </TableRow>
@@ -678,14 +716,14 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                   {loading ? (
                     Array.from({ length: PAGE_SIZE }).map((_, i) => (
                       <TableRow key={i} className="border-b border-zinc-200/40 dark:border-zinc-800/40">
-                        <TableCell colSpan={isSelectionMode ? 7 : 6} className="py-3 px-4">
+                        <TableCell colSpan={isSelectionMode ? 8 : 7} className="py-3 px-4">
                           <div className="h-4 w-full bg-zinc-200/50 dark:bg-zinc-800/50 rounded animate-pulse" />
                         </TableCell>
                       </TableRow>
                     ))
                   ) : data.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={isSelectionMode ? 7 : 6} className="text-center py-12 text-xs text-zinc-400 dark:text-zinc-500 font-arabic font-medium">
+                      <TableCell colSpan={isSelectionMode ? 8 : 7} className="text-center py-12 text-xs text-zinc-400 dark:text-zinc-500 font-arabic font-medium">
                         لا توجد معاملات مسجلة
                       </TableCell>
                     </TableRow>
@@ -825,7 +863,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                   </div>
 
                                   {/* 3. اسلوب الدفع */}
-                                  <div className="w-36 text-center">
+                                  <div className="w-28 text-center">
                                     <span className={`inline-block px-2.5 py-0.5 rounded-md border text-[11px] font-medium font-arabic ${
                                       isNewlyCreated
                                         ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-zinc-900 dark:border-zinc-100'
@@ -835,8 +873,27 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                     </span>
                                   </div>
 
-                                  {/* 4. القيمة */}
-                                  <div className="w-40 text-right font-arabic ar-num">
+                                  {/* 4. سبب المعاملة / الملاحظات */}
+                                  <div className="w-44 text-right font-arabic">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleOpenEditNotes(tx, e)}
+                                      className="inline-flex items-center gap-1.5 max-w-full text-right text-xs rounded-lg px-2 py-1 transition-all border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 text-zinc-700 dark:text-zinc-300 group/note"
+                                      title="اضغط لتعديل سبب/ملاحظات المعاملة"
+                                    >
+                                      <FileText className="w-3.5 h-3.5 text-zinc-400 group-hover/note:text-emerald-500 shrink-0" />
+                                      <span className="truncate max-w-[130px]">
+                                        {tx.notes?.trim() ? (
+                                          tx.notes.trim()
+                                        ) : (
+                                          <span className="text-[11px] text-zinc-400 dark:text-zinc-500 italic">+ إضافة سبب</span>
+                                        )}
+                                      </span>
+                                    </button>
+                                  </div>
+
+                                  {/* 5. القيمة */}
+                                  <div className="w-36 text-right font-arabic ar-num">
                                     <span className={`text-xs font-semibold ${
                                       isNewlyCreated ? 'text-zinc-950 dark:text-white font-extrabold' : isDeposit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                                     }`}>
@@ -844,13 +901,13 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                     </span>
                                   </div>
 
-                                  {/* 5. التاريخ */}
-                                  <div className={`w-44 text-right font-arabic ar-num text-xs ${isNewlyCreated ? 'text-zinc-800 dark:text-zinc-200 font-bold' : 'text-zinc-500 dark:text-zinc-400'}`} dir="ltr">
+                                  {/* 6. التاريخ */}
+                                  <div className={`w-36 text-right font-arabic ar-num text-xs ${isNewlyCreated ? 'text-zinc-800 dark:text-zinc-200 font-bold' : 'text-zinc-500 dark:text-zinc-400'}`} dir="ltr">
                                     {formatDate(tx.created_at)}
                                   </div>
 
-                                  {/* 6. الإجراء */}
-                                  <div className="w-28 text-center flex items-center justify-center gap-1.5">
+                                  {/* 7. الإجراء */}
+                                  <div className="w-24 text-center flex items-center justify-center gap-1">
                                     <button
                                       onClick={(e) => { e.stopPropagation(); handleViewReceipt(tx) }}
                                       className="p-1.5 rounded-md transition-colors border border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-200 dark:hover:border-zinc-700"
@@ -1028,6 +1085,60 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
         onApplyFilter={(newFilter) => setDashboardFilter(newFilter)}
         onResetFilter={() => setDashboardFilter(defaultDashboardFilter)}
       />
+
+      {/* Edit / Add Notes Modal for Existing & New Transactions */}
+      <Dialog open={editingNotesTx !== null} onOpenChange={(open) => !open && setEditingNotesTx(null)}>
+        <DialogContent className="max-w-md bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 font-arabic p-5 rounded-2xl shadow-xl" dir="rtl">
+          <DialogHeader className="text-right">
+            <DialogTitle className="text-sm font-extrabold flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
+              <Edit3 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>تعديل سبب / ملاحظات المعاملة</span>
+            </DialogTitle>
+            {editingNotesTx && (
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+                جهة المعاملة: <span className="font-bold text-zinc-800 dark:text-zinc-200">{editingNotesTx.client_name}</span> | المبلغ: <span className="font-bold text-emerald-600 dark:text-emerald-400 ar-num">{formatCurrency(editingNotesTx.amount_cents)}</span>
+              </p>
+            )}
+          </DialogHeader>
+
+          <form onSubmit={handleSaveNotes} className="space-y-4 mt-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-notes-input" className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 block text-right">
+                سبب الإيداع/السحب (الملاحظات)
+              </Label>
+              <Input
+                id="edit-notes-input"
+                type="text"
+                placeholder="أدخل سبب المعاملة أو أي ملاحظة إضافية..."
+                value={editingNotesText}
+                onChange={(e) => setEditingNotesText(e.target.value)}
+                className="bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-xs text-zinc-900 dark:text-zinc-100 rounded-lg font-arabic text-right"
+                autoFocus
+                autoComplete="off"
+              />
+            </div>
+
+            <DialogFooter className="flex-row-reverse gap-2 mt-5">
+              <Button
+                type="submit"
+                disabled={savingNotes}
+                className="flex-1 text-xs font-arabic font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg"
+              >
+                {savingNotes && <Loader2 className="w-3.5 h-3.5 animate-spin ml-1.5" />}
+                حفظ الملاحظات
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingNotesTx(null)}
+                className="flex-1 text-xs bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 font-arabic rounded-lg"
+              >
+                إلغاء
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

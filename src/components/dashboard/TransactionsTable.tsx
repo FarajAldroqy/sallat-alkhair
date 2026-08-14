@@ -674,11 +674,11 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
         <Card className="subtle-card rounded-xl p-0 shadow-none border border-zinc-200/80 dark:border-zinc-800 overflow-hidden bg-white dark:bg-zinc-900/90 transition-colors">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <Table dir="rtl">
+              <Table dir="rtl" className="w-full border-collapse">
                 <TableHeader>
-                  <TableRow className="bg-zinc-50/80 dark:bg-zinc-800/80 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/80 border-b border-zinc-200/80 dark:border-zinc-800">
+                  <TableRow className="flex items-center w-full px-4 py-3 bg-zinc-50/80 dark:bg-zinc-800/80 hover:bg-zinc-50/80 dark:hover:bg-zinc-800/80 border-b border-zinc-200/80 dark:border-zinc-800 font-arabic text-xs font-bold text-zinc-700 dark:text-zinc-300">
                     {isSelectionMode && (
-                      <TableHead className="w-12 text-center py-3 font-arabic">
+                      <TableHead className="w-8 text-center p-0 flex items-center justify-center shrink-0 ml-2">
                         <input
                           type="checkbox"
                           checked={data.length > 0 && data.every((t) => selectedIds.includes(t.id))}
@@ -688,25 +688,25 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                         />
                       </TableHead>
                     )}
-                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-right py-3 font-arabic">
+                    <TableHead className="flex-1 min-w-0 text-right p-0 font-bold">
                       اسم الجهة
                     </TableHead>
-                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center py-3 font-arabic w-28">
+                    <TableHead className="w-28 text-center p-0 font-bold shrink-0">
                       نوع العملية
                     </TableHead>
-                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center py-3 font-arabic w-28">
+                    <TableHead className="w-28 text-center p-0 font-bold shrink-0">
                       اسلوب الدفع
                     </TableHead>
-                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-right py-3 font-arabic w-44">
+                    <TableHead className="w-44 text-right p-0 font-bold shrink-0">
                       سبب المعاملة / الملاحظات
                     </TableHead>
-                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-right py-3 font-arabic w-36">
+                    <TableHead className="w-36 text-right p-0 font-bold shrink-0">
                       القيمة
                     </TableHead>
-                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-right py-3 font-arabic w-36">
+                    <TableHead className="w-44 text-right p-0 font-bold shrink-0">
                       التاريخ
                     </TableHead>
-                    <TableHead className="text-xs font-bold text-zinc-700 dark:text-zinc-300 text-center py-3 font-arabic w-24">
+                    <TableHead className="w-24 text-center p-0 font-bold shrink-0">
                       الإجراء
                     </TableHead>
                   </TableRow>
@@ -850,7 +850,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                   </div>
 
                                   {/* 2. نوع العملية */}
-                                  <div className="w-32 text-center">
+                                  <div className="w-28 text-center shrink-0">
                                     <span className={`inline-flex items-center justify-center px-3 py-0.5 rounded-full border text-[11px] font-bold font-arabic ${
                                       isNewlyCreated
                                         ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-zinc-900 dark:border-zinc-100'
@@ -863,7 +863,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                   </div>
 
                                   {/* 3. اسلوب الدفع */}
-                                  <div className="w-28 text-center">
+                                  <div className="w-28 text-center shrink-0">
                                     <span className={`inline-block px-2.5 py-0.5 rounded-md border text-[11px] font-medium font-arabic ${
                                       isNewlyCreated
                                         ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-zinc-900 dark:border-zinc-100'
@@ -874,7 +874,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                   </div>
 
                                   {/* 4. سبب المعاملة / الملاحظات */}
-                                  <div className="w-44 text-right font-arabic">
+                                  <div className="w-44 text-right font-arabic shrink-0">
                                     <button
                                       type="button"
                                       onClick={(e) => handleOpenEditNotes(tx, e)}
@@ -893,7 +893,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                   </div>
 
                                   {/* 5. القيمة */}
-                                  <div className="w-36 text-right font-arabic ar-num">
+                                  <div className="w-36 text-right font-arabic ar-num shrink-0">
                                     <span className={`text-xs font-semibold ${
                                       isNewlyCreated ? 'text-zinc-950 dark:text-white font-extrabold' : isDeposit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
                                     }`}>
@@ -902,12 +902,12 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                   </div>
 
                                   {/* 6. التاريخ */}
-                                  <div className={`w-36 text-right font-arabic ar-num text-xs ${isNewlyCreated ? 'text-zinc-800 dark:text-zinc-200 font-bold' : 'text-zinc-500 dark:text-zinc-400'}`} dir="ltr">
+                                  <div className={`w-44 text-right font-arabic ar-num text-xs shrink-0 ${isNewlyCreated ? 'text-zinc-800 dark:text-zinc-200 font-bold' : 'text-zinc-500 dark:text-zinc-400'}`} dir="ltr">
                                     {formatDate(tx.created_at)}
                                   </div>
 
                                   {/* 7. الإجراء */}
-                                  <div className="w-24 text-center flex items-center justify-center gap-1">
+                                  <div className="w-24 text-center flex items-center justify-center gap-1 shrink-0">
                                     <button
                                       onClick={(e) => { e.stopPropagation(); handleViewReceipt(tx) }}
                                       className="p-1.5 rounded-md transition-colors border border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-200 dark:hover:border-zinc-700"

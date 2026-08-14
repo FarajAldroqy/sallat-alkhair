@@ -7,6 +7,7 @@ import { formatCurrency, getDateFilterText, filterTransactionsByDate } from '@/l
 import type { Transaction, DateFilter } from '@/types'
 import { usePermission } from '@/hooks/usePermission'
 import logoImg from '@/assets/logo.png'
+import eagleImg from '@/assets/eagle.png'
 
 interface EntityLedgerModalProps {
   open: boolean
@@ -144,28 +145,40 @@ export function EntityLedgerModal({
           `}</style>
 
           {/* Official Report Document Header */}
-          <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-4">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-4 gap-4" dir="rtl">
+            {/* Right: Enlarged Salla Logo (أقصى اليمين) */}
+            <div className="flex items-center justify-start shrink-0">
               <img
                 src={logoImg}
                 alt="شعار سلة الخير"
-                className="w-14 h-14 object-contain"
+                className="w-28 h-28 sm:w-32 sm:h-32 object-contain drop-shadow-sm"
                 onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
               />
-              <div>
-                <h1 className="text-xl font-black text-black">منظومة سلة الخير — كشف حساب مالي</h1>
-                <p className="text-sm font-bold text-gray-700 mt-0.5">
-                  اسم الجهة / المستفيد: <span className="underline">{entityName}</span>
-                </p>
-                <p className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 mt-1 inline-block">
+            </div>
+
+            {/* Center: System Header & Entity Title Text (في الوسط) */}
+            <div className="text-center flex-1 space-y-1">
+              <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight">سلة الخير للمعاملات المالية</h1>
+              <p className="text-sm font-extrabold text-gray-800">
+                تقرير كشف حساب مالي — <span className="underline font-black text-black">{entityName}</span>
+              </p>
+              <div className="flex items-center justify-center gap-3 text-xs font-bold text-gray-700 ar-num flex-wrap pt-0.5">
+                <span className="bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-300 text-emerald-900 font-extrabold">
                   {dateLabel}
-                </p>
+                </span>
+                <span>تاريخ التقرير: {new Date().toLocaleDateString('ar-LY')}</span>
+                <span>إجمالي العمليات: {entityTx.length} معاملة</span>
               </div>
             </div>
-            <div className="text-left text-xs font-bold text-gray-800 ar-num space-y-1">
-              <p className="font-extrabold text-sm text-black">منظومة سلة الخير</p>
-              <p>تاريخ إصدار التقرير: {new Date().toLocaleDateString('ar-LY')}</p>
-              <p>إجمالي العمليات: {entityTx.length} معاملة</p>
+
+            {/* Left: Eagle Logo (أقصى اليسار) */}
+            <div className="flex items-center justify-end shrink-0">
+              <img
+                src={eagleImg}
+                alt="شعار النسر"
+                className="w-18 h-18 sm:w-20 sm:h-20 object-contain mix-blend-multiply"
+                onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+              />
             </div>
           </div>
 

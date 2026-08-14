@@ -433,15 +433,15 @@ export function TransactionsReportModal({
                 {/* Preview Document Header */}
                 <div className="flex items-center justify-between pb-4 border-b-2 border-zinc-900 gap-4" dir="rtl">
                   <div className="flex items-center justify-start shrink-0">
-                    <img src={logoImg} alt="شعار سلة الخير" className="w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-sm" />
+                    <img src={logoImg} alt="شعار سلة الخير" className="w-28 h-28 sm:w-32 sm:h-32 object-contain drop-shadow-sm" />
                   </div>
                   <div className="text-center flex-1 space-y-1">
-                    <h1 className="font-black text-xl text-zinc-950 tracking-tight leading-tight">سلة الخير للمعاملات المالية</h1>
-                    <p className="text-xs font-extrabold text-zinc-700">تقرير المعاملات والحركات المالية المخصصة</p>
-                    <p className="text-[11px] text-zinc-500 font-bold ar-num">{filterText}</p>
+                    <h1 className="font-black text-xl sm:text-2xl text-zinc-950 tracking-tight leading-tight">سلة الخير للمعاملات المالية</h1>
+                    <p className="text-xs sm:text-sm font-extrabold text-zinc-700">تقرير المعاملات والحركات المالية المخصصة</p>
+                    <p className="text-[11px] sm:text-xs text-zinc-500 font-bold ar-num">{filterText}</p>
                   </div>
                   <div className="flex items-center justify-end shrink-0">
-                    <img src={eagleImg} alt="شعار النسر" className="w-16 h-16 sm:w-18 sm:h-18 object-contain mix-blend-multiply" />
+                    <img src={eagleImg} alt="شعار النسر" className="w-18 h-18 sm:w-20 sm:h-20 object-contain mix-blend-multiply" />
                   </div>
                 </div>
 

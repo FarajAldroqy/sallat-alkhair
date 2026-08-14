@@ -77,43 +77,47 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
           <img
             src={logoImg}
             alt="العلامة المائية"
-            className="w-[75%] h-[75%] object-contain opacity-25 dark:opacity-30 mix-blend-multiply"
+            className="w-[75%] h-[65%] object-contain opacity-75 dark:opacity-60 mix-blend-multiply"
           />
         </div>
       )}
 
-      {/* Top Header Row */}
-      <div className="relative z-10">
-        <div className="flex items-center justify-between pb-2 border-b-2 border-zinc-900">
-          {/* Top Right (RTL): System Title, Receipt Type Header & Serial Number */}
-          <div className="space-y-1.5 text-right">
-            <h1 className="font-black text-xl sm:text-2xl text-zinc-950 tracking-tight leading-tight">سلة الخير للمعاملات المالية</h1>
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="inline-block px-3.5 py-1 rounded-lg bg-zinc-950 text-white font-black text-xs sm:text-sm shadow-xs">
-                {receiptTitle}
-              </div>
-              <div className="inline-block px-3 py-1 rounded-lg border-2 border-zinc-900 bg-zinc-50 font-mono text-xs sm:text-sm font-black text-zinc-950 dir-ltr shadow-xs">
-                #{serial}
+        {/* Top Header Row */}
+        <div className="relative z-10">
+          <div className="flex items-center justify-between pb-2 border-b-2 border-zinc-900 gap-3" dir="rtl">
+            {/* Far Right (أقصى اليمين): Enlarged Salla App Logo */}
+            <div className="flex items-center justify-start shrink-0">
+              <img
+                src={logoImg}
+                alt="شعار سلة الخير"
+                className="w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-sm"
+                onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+              />
+            </div>
+
+            {/* Center (في الوسط): System Title, Receipt Type & Serial Number */}
+            <div className="text-center flex-1 space-y-1.5">
+              <h1 className="font-black text-xl sm:text-2xl text-zinc-950 tracking-tight leading-tight">سلة الخير للمعاملات المالية</h1>
+              <div className="flex items-center justify-center gap-2 flex-wrap">
+                <div className="inline-block px-3.5 py-1 rounded-lg bg-zinc-950 text-white font-black text-xs sm:text-sm shadow-xs">
+                  {receiptTitle}
+                </div>
+                <div className="inline-block px-3 py-1 rounded-lg border-2 border-zinc-900 bg-zinc-50 font-mono text-xs sm:text-sm font-black text-zinc-950 dir-ltr shadow-xs">
+                  #{serial}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Top Left (RTL): Enlarged Eagle & System Logos alone */}
-          <div className="flex items-center gap-3 shrink-0">
-            <img
-              src={eagleImg}
-              alt="شعار النسر"
-              className="w-16 h-16 sm:w-18 sm:h-18 object-contain mix-blend-multiply"
-              onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
-            />
-            <img
-              src={logoImg}
-              alt="شعار سلة الخير"
-              className="w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-sm"
-              onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
-            />
+            {/* Far Left (أقصى اليسار): Enlarged Eagle Logo */}
+            <div className="flex items-center justify-end shrink-0">
+              <img
+                src={eagleImg}
+                alt="شعار النسر"
+                className="w-16 h-16 sm:w-18 sm:h-18 object-contain mix-blend-multiply"
+                onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+              />
+            </div>
           </div>
-        </div>
 
         {/* Data Fields Grid (Large Fonts + Compact Vertical Padding) */}
         <div className="grid grid-cols-2 gap-2.5 my-2.5 p-3 rounded-xl border-2 border-zinc-300 bg-zinc-50/60 text-xs sm:text-sm">
@@ -133,9 +137,8 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
           {/* Row 2: Transaction Type */}
           <div className="space-y-0.5 col-span-2">
             <span className="text-zinc-600 font-bold block text-xs">نوع المعاملة:</span>
-            <span className={`inline-block px-3 py-1 rounded-md font-black text-xs sm:text-sm ${
-              isDeposit ? 'bg-emerald-100 text-emerald-950 border border-emerald-300' : 'bg-rose-100 text-rose-950 border border-rose-300'
-            }`}>
+            <span className={`inline-block px-3 py-1 rounded-md font-black text-xs sm:text-sm ${isDeposit ? 'bg-emerald-100 text-emerald-950 border border-emerald-300' : 'bg-rose-100 text-rose-950 border border-rose-300'
+              }`}>
               {isDeposit ? 'إيداع نقدي (قبض)' : 'سحب نقدي (صرف)'}
             </span>
           </div>

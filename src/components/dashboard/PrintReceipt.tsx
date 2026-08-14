@@ -77,7 +77,7 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
           <img
             src={logoImg}
             alt="العلامة المائية"
-            className="w-[75%] h-[75%] object-contain opacity-10 dark:opacity-15 mix-blend-multiply"
+            className="w-[75%] h-[75%] object-contain opacity-25 dark:opacity-30 mix-blend-multiply"
           />
         </div>
       )}

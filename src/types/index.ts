@@ -1,9 +1,13 @@
 export type PaymentMethod = 'نقداً' | 'تحويل مصرفي' | 'بطاقة'
+export type TransactionSubtype = 'REGULAR' | 'PERSON'
 
 export interface Transaction {
   id: number
   client_name: string
   type: 'DEPOSIT' | 'WITHDRAWAL'
+  subtype?: TransactionSubtype
+  person_name?: string
+  person_names?: string[]
   amount_cents: number
   payment_method?: PaymentMethod | string
   notes?: string
@@ -17,6 +21,9 @@ export interface Transaction {
 export interface TransactionCreate {
   client_name: string
   type: 'DEPOSIT' | 'WITHDRAWAL'
+  subtype?: TransactionSubtype
+  person_name?: string
+  person_names?: string[]
   amount_cents: number
   payment_method: PaymentMethod | string
   notes?: string

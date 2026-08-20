@@ -61,7 +61,12 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
   if (!transaction) return null
 
   const isDeposit = transaction.type === 'DEPOSIT'
-  const receiptTitle = isDeposit ? 'إيصال قبض نقدي / المصرف' : 'إيصال صرف نقدي / المصرف'
+  const isPersonSubtype = transaction.subtype === 'PERSON'
+
+  let receiptTitle = isDeposit ? 'إيصال قبض نقدي / المصرف' : 'إيصال صرف نقدي / المصرف'
+  if (isPersonSubtype) {
+    receiptTitle = isDeposit ? 'إيصال قبض (إيداع من شخص)' : 'إيصال صرف (سحب للأشخاص)'
+  }
 
   const isSallatAlkhair = transaction.client_name?.trim() === 'سلة الخير'
 
@@ -122,10 +127,46 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
         {/* Data Fields Grid (Large Fonts + Compact Vertical Padding) */}
         <div className="grid grid-cols-2 gap-2.5 my-2.5 p-3 rounded-xl border-2 border-zinc-300 bg-zinc-50/60 text-xs sm:text-sm">
           {/* Row 1 */}
-          <div className="space-y-0.5">
-            <span className="text-zinc-600 font-bold block text-xs">اسم الجهة / المستفيد:</span>
-            <span className="font-black text-base sm:text-lg text-zinc-950 block truncate">{transaction.client_name}</span>
-          </div>
+          {isPersonSubtype ? (
+            isDeposit ? (
+              <>
+                <div className="space-y-0.5">
+                  <span className="text-zinc-600 font-bold block text-xs">اسم الشخص (المودِع):</span>
+                  <span className="font-black text-base sm:text-lg text-emerald-950 block truncate">
+                    {transaction.person_name || 'غير محدد'}
+                  </span>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-zinc-600 font-bold block text-xs">الجهة المودَع لها بالمنظومة:</span>
+                  <span className="font-black text-base sm:text-lg text-zinc-950 block truncate">
+                    {transaction.client_name}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-0.5 col-span-2 sm:col-span-1">
+                  <span className="text-zinc-600 font-bold block text-xs">أسماء الأشخاص (المستلمون):</span>
+                  <span className="font-black text-base sm:text-lg text-rose-950 block truncate">
+                    {transaction.person_names && transaction.person_names.length > 0
+                      ? transaction.person_names.join(' ، ')
+                      : (transaction.person_name || 'غير محدد')}
+                  </span>
+                </div>
+                <div className="space-y-0.5 col-span-2 sm:col-span-1">
+                  <span className="text-zinc-600 font-bold block text-xs">الجهة المسحوب منها المال:</span>
+                  <span className="font-black text-base sm:text-lg text-zinc-950 block truncate">
+                    {transaction.client_name}
+                  </span>
+                </div>
+              </>
+            )
+          ) : (
+            <div className="space-y-0.5">
+              <span className="text-zinc-600 font-bold block text-xs">اسم الجهة / المستفيد:</span>
+              <span className="font-black text-base sm:text-lg text-zinc-950 block truncate">{transaction.client_name}</span>
+            </div>
+          )}
 
           <div className="space-y-0.5">
             <span className="text-zinc-600 font-bold block text-xs">التاريخ والوقت:</span>
@@ -137,9 +178,13 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
           {/* Row 2: Transaction Type */}
           <div className="space-y-0.5 col-span-2">
             <span className="text-zinc-600 font-bold block text-xs">نوع المعاملة:</span>
-            <span className={`inline-block px-3 py-1 rounded-md font-black text-xs sm:text-sm ${isDeposit ? 'bg-emerald-100 text-emerald-950 border border-emerald-300' : 'bg-rose-100 text-rose-950 border border-rose-300'
-              }`}>
-              {isDeposit ? 'إيداع نقدي (قبض)' : 'سحب نقدي (صرف)'}
+            <span className={`inline-block px-3 py-1 rounded-md font-black text-xs sm:text-sm ${
+              isDeposit ? 'bg-emerald-100 text-emerald-950 border border-emerald-300' : 'bg-rose-100 text-rose-950 border border-rose-300'
+            }`}>
+              {isPersonSubtype
+                ? isDeposit ? 'إيداع نقدي من شخص' : 'سحب نقدي للأشخاص'
+                : isDeposit ? 'إيداع نقدي (قبض)' : 'سحب نقدي (صرف)'
+              }
             </span>
           </div>
 
@@ -162,8 +207,9 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
       </div>
 
       {/* Signature Area Footer */}
-      <div className="flex items-center justify-start text-xs sm:text-sm font-black text-zinc-950 mt-auto pt-1 relative z-10">
-        <span>التوقيع: .........</span>
+      <div className="flex items-center justify-between text-xs sm:text-sm font-black text-zinc-950 mt-auto pt-1 relative z-10 px-1" dir="rtl">
+        <span>توقيع رئيس الشؤون المالية: ....................</span>
+        <span>توقيع المستلم: ....................</span>
       </div>
     </div>
   )

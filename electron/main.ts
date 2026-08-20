@@ -40,6 +40,9 @@ function initDatabase() {
         id             INTEGER PRIMARY KEY AUTOINCREMENT,
         client_name    TEXT    NOT NULL,
         type           TEXT    NOT NULL CHECK(type IN ('DEPOSIT', 'WITHDRAWAL')),
+        subtype        TEXT    NOT NULL DEFAULT 'REGULAR',
+        person_name    TEXT    NOT NULL DEFAULT '',
+        person_names   TEXT    NOT NULL DEFAULT '',
         amount_cents   BIGINT  NOT NULL,
         payment_method TEXT    NOT NULL DEFAULT 'نقداً',
         status         TEXT    NOT NULL DEFAULT 'COMPLETED',
@@ -72,6 +75,15 @@ function initDatabase() {
     }
     if (!colNames.has('notes')) {
       try { db.exec(`ALTER TABLE transactions ADD COLUMN notes TEXT NOT NULL DEFAULT ''`) } catch {}
+    }
+    if (!colNames.has('subtype')) {
+      try { db.exec(`ALTER TABLE transactions ADD COLUMN subtype TEXT NOT NULL DEFAULT 'REGULAR'`) } catch {}
+    }
+    if (!colNames.has('person_name')) {
+      try { db.exec(`ALTER TABLE transactions ADD COLUMN person_name TEXT NOT NULL DEFAULT ''`) } catch {}
+    }
+    if (!colNames.has('person_names')) {
+      try { db.exec(`ALTER TABLE transactions ADD COLUMN person_names TEXT NOT NULL DEFAULT ''`) } catch {}
     }
     if (!colNames.has('is_pinned')) {
       try { db.exec(`ALTER TABLE transactions ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0`) } catch {}
@@ -118,8 +130,8 @@ function registerIpcHandlers() {
       db.exec('DELETE FROM transactions')
       db.exec('DELETE FROM transaction_notes')
       const stmt = db.prepare(`
-        INSERT INTO transactions (id, client_name, type, amount_cents, payment_method, status, notes, is_pinned, is_archived, is_deleted, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO transactions (id, client_name, type, subtype, person_name, person_names, amount_cents, payment_method, status, notes, is_pinned, is_archived, is_deleted, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       const noteStmt = db.prepare(`
         INSERT OR REPLACE INTO transaction_notes (transaction_id, notes)
@@ -129,10 +141,14 @@ function registerIpcHandlers() {
       const insertMany = db.transaction((items: any[]) => {
         for (const t of items) {
           const notesVal = t.notes || ''
+          const personNamesStr = Array.isArray(t.person_names) ? JSON.stringify(t.person_names) : (t.person_names || '')
           stmt.run(
             t.id,
             t.client_name,
             t.type,
+            t.subtype || 'REGULAR',
+            t.person_name || '',
+            personNamesStr,
             t.amount_cents,
             t.payment_method || 'نقداً',
             t.status || 'COMPLETED',
@@ -210,9 +226,21 @@ function registerIpcHandlers() {
         `SELECT COUNT(*) as c FROM transactions ${whereClause}`
       ).get(...args) as { c: number }).c
 
-      const data = db.prepare(
+      const rawData = db.prepare(
         `SELECT * FROM transactions ${whereClause} ORDER BY is_pinned DESC, created_at DESC LIMIT ? OFFSET ?`
-      ).all(...args, pageSize, offset)
+      ).all(...args, pageSize, offset) as any[]
+
+      const data = rawData.map((t) => {
+        let person_names: string[] | undefined = undefined
+        if (t.person_names) {
+          try {
+            person_names = JSON.parse(t.person_names)
+          } catch {
+            person_names = [t.person_names]
+          }
+        }
+        return { ...t, person_names }
+      })
 
       return { data, total, page, pageSize }
     } catch (err: any) {
@@ -225,6 +253,9 @@ function registerIpcHandlers() {
   ipcMain.handle('db:create-transaction', (_event, payload: {
     client_name: string
     type: string
+    subtype?: string
+    person_name?: string
+    person_names?: string[]
     amount_cents: number
     payment_method?: string
     notes?: string
@@ -234,6 +265,9 @@ function registerIpcHandlers() {
       const paymentMethod = payload.payment_method || 'نقداً'
       const status = payload.status || 'COMPLETED'
       const notes = (payload.notes || '').trim()
+      const subtype = payload.subtype || 'REGULAR'
+      const personName = payload.person_name || ''
+      const personNamesStr = payload.person_names ? JSON.stringify(payload.person_names) : ''
 
       // Self-healing migration check for all columns
       try {
@@ -244,6 +278,15 @@ function registerIpcHandlers() {
         }
         if (!colNames.has('notes')) {
           try { db.exec(`ALTER TABLE transactions ADD COLUMN notes TEXT NOT NULL DEFAULT ''`) } catch {}
+        }
+        if (!colNames.has('subtype')) {
+          try { db.exec(`ALTER TABLE transactions ADD COLUMN subtype TEXT NOT NULL DEFAULT 'REGULAR'`) } catch {}
+        }
+        if (!colNames.has('person_name')) {
+          try { db.exec(`ALTER TABLE transactions ADD COLUMN person_name TEXT NOT NULL DEFAULT ''`) } catch {}
+        }
+        if (!colNames.has('person_names')) {
+          try { db.exec(`ALTER TABLE transactions ADD COLUMN person_names TEXT NOT NULL DEFAULT ''`) } catch {}
         }
         if (!colNames.has('is_pinned')) {
           try { db.exec(`ALTER TABLE transactions ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0`) } catch {}
@@ -259,12 +302,15 @@ function registerIpcHandlers() {
       let result: any
       try {
         const stmt = db.prepare(`
-          INSERT INTO transactions (client_name, type, amount_cents, payment_method, status, notes, is_pinned, is_archived, is_deleted)
-          VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0)
+          INSERT INTO transactions (client_name, type, subtype, person_name, person_names, amount_cents, payment_method, status, notes, is_pinned, is_archived, is_deleted)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)
         `)
         result = stmt.run(
           payload.client_name,
           payload.type,
+          subtype,
+          personName,
+          personNamesStr,
           payload.amount_cents,
           paymentMethod,
           status,
@@ -290,7 +336,15 @@ function registerIpcHandlers() {
         } catch {}
       }
 
-      return db.prepare('SELECT * FROM transactions WHERE id = ?').get(result.lastInsertRowid)
+      const createdRow: any = db.prepare('SELECT * FROM transactions WHERE id = ?').get(result.lastInsertRowid)
+      if (createdRow && createdRow.person_names) {
+        try {
+          createdRow.person_names = JSON.parse(createdRow.person_names)
+        } catch {
+          createdRow.person_names = [createdRow.person_names]
+        }
+      }
+      return createdRow
     } catch (err: any) {
       console.error('Failed to create transaction:', err)
       throw err

@@ -366,6 +366,8 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
       if (newTx && newTx.id) {
         setNewlyCreatedId(newTx.id)
         setTimeout(() => setNewlyCreatedId(null), 140)
+        setSelectedReceipt(newTx)
+        setReceiptOpen(true)
       }
     }
   }
@@ -844,21 +846,34 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                         <Pin className="w-3 h-3 fill-current" />
                                       </span>
                                     )}
-                                    <span className={`text-xs truncate ${isNewlyCreated ? 'text-zinc-950 dark:text-white font-extrabold' : isPinned ? 'font-bold text-zinc-900 dark:text-white' : 'font-semibold text-zinc-900 dark:text-zinc-100'}`}>
-                                      {tx.client_name}
-                                    </span>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className={`text-xs truncate ${isNewlyCreated ? 'text-zinc-950 dark:text-white font-extrabold' : isPinned ? 'font-bold text-zinc-900 dark:text-white' : 'font-semibold text-zinc-900 dark:text-zinc-100'}`}>
+                                        {tx.client_name}
+                                      </span>
+                                      {tx.subtype === 'PERSON' && (
+                                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium truncate">
+                                          {isDeposit
+                                            ? `بواسطة المودِع: ${tx.person_name || 'شخص'}`
+                                            : `المستلمون: ${tx.person_names && tx.person_names.length > 0 ? tx.person_names.join(' ، ') : (tx.person_name || 'شخص')}`
+                                          }
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
 
                                   {/* 2. نوع العملية */}
                                   <div className="w-28 text-center shrink-0">
-                                    <span className={`inline-flex items-center justify-center px-3 py-0.5 rounded-full border text-[11px] font-bold font-arabic ${
+                                    <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full border text-[10px] sm:text-[11px] font-bold font-arabic ${
                                       isNewlyCreated
                                         ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-zinc-900 dark:border-zinc-100'
                                         : isDeposit
                                         ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                                         : 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
                                     }`}>
-                                      {isDeposit ? 'إيداع' : 'سحب'}
+                                      {tx.subtype === 'PERSON'
+                                        ? isDeposit ? 'إيداع من شخص' : 'سحب للأشخاص'
+                                        : isDeposit ? 'إيداع' : 'سحب'
+                                      }
                                     </span>
                                   </div>
 

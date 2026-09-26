@@ -2,6 +2,9 @@ import { app, BrowserWindow, ipcMain } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import fs from 'node:fs'
+
+app.setName('منتجع MJS')
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -26,7 +29,40 @@ let db: any
 function initDatabase() {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const Database = require('better-sqlite3')
-  const dbPath = path.join(app.getPath('userData'), 'finance.db')
+  const userDataPath = app.getPath('userData')
+  const dbPath = path.join(userDataPath, 'finance.db')
+
+  // Migration safeguard: if database does not exist in current userData, check legacy folders
+  if (!fs.existsSync(dbPath)) {
+    try {
+      const appData = app.getPath('appData')
+      const legacyDirs = [
+        path.join(appData, 'SallatAlkhair'),
+        path.join(appData, 'sallat-alkhair'),
+        path.join(appData, 'منتجع MJS للمعاملات المالية'),
+      ]
+      for (const legacyDir of legacyDirs) {
+        const legacyDb = path.join(legacyDir, 'finance.db')
+        if (fs.existsSync(legacyDb)) {
+          if (!fs.existsSync(userDataPath)) {
+            fs.mkdirSync(userDataPath, { recursive: true })
+          }
+          fs.copyFileSync(legacyDb, dbPath)
+          if (fs.existsSync(legacyDb + '-wal')) {
+            fs.copyFileSync(legacyDb + '-wal', dbPath + '-wal')
+          }
+          if (fs.existsSync(legacyDb + '-shm')) {
+            fs.copyFileSync(legacyDb + '-shm', dbPath + '-shm')
+          }
+          console.log(`Migrated database from ${legacyDb} to ${dbPath}`)
+          break
+        }
+      }
+    } catch (migErr) {
+      console.error('Failed checking legacy database paths:', migErr)
+    }
+  }
+
   db = new Database(dbPath)
 
   // Enable WAL mode for better performance
@@ -642,7 +678,7 @@ let isQuitting = false
 
 function createWindow() {
   win = new BrowserWindow({
-    title: 'منتجع MJS للمعاملات المالية',
+    title: 'منتجع MJS',
     width: 1400,
     height: 900,
     minWidth: 1100,

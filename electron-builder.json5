@@ -1,9 +1,9 @@
 // @see - https://www.electron.build/configuration/configuration
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "com.sallatalkhair.app",
+  "appId": "com.mjsresort.app",
   "asar": true,
-  "productName": "SallatAlkhair",
+  "productName": "منتجع MJS",
   "directories": {
     "output": "release"
   },
@@ -51,7 +51,7 @@
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
     "shortcutName": "منتجع MJS",
-    "uninstallDisplayName": "منتجع MJS للمعاملات المالية",
+    "uninstallDisplayName": "منتجع MJS",
     "runAfterFinish": true,
     // The SQLite database lives in app.getPath('userData'), outside the install
     // directory. Keep it on uninstall — this is financial data.

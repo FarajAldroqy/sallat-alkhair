@@ -4,11 +4,13 @@ import { KeyRound, Lock, User, AlertCircle, CheckCircle2, X } from 'lucide-react
 
 import type { UserAccount } from '@/types'
 import logoImg from '@/assets/logo.png'
-import eagleImg from '@/assets/eagle.png'
+import formula1Img from '@/assets/formula1.png'
+import arcadeImg from '@/assets/arcade.png'
 import bg1 from '@/assets/bg1.jpg'
 import bg2 from '@/assets/bg2.jpg'
 import bg3 from '@/assets/bg3.jpg'
 import bg4 from '@/assets/bg4.jpg'
+import { hashPassword, verifyPassword, isLegacyPassword } from '@/lib/cryptoUtils'
 
 interface LoginPageProps {
   onLoginSuccess: () => void
@@ -58,8 +60,8 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
     return [DEFAULT_USER]
   }
 
-  // Handle Standard Credentials Login
-  const handleLogin = (e: React.FormEvent) => {
+  // Handle Standard Credentials Login (async PBKDF2 verification)
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setErrorMsg('')
 
@@ -67,10 +69,30 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
     const trimmedUser = username.trim().toLowerCase()
 
     const matchedUser = systemUsers.find(
-      (u) => u.username.toLowerCase() === trimmedUser && u.password === password
+      (u) => u.username.toLowerCase() === trimmedUser
     )
 
-    if (matchedUser) {
+    if (!matchedUser) {
+      setErrorMsg('اسم المستخدم أو كلمة السر غير صحيحة')
+      return
+    }
+
+    const storedPassword = matchedUser.password || ''
+    const isValid = await verifyPassword(password, storedPassword)
+
+    if (isValid) {
+      // Auto-upgrade legacy plain-text password to PBKDF2 hash on first login
+      if (isLegacyPassword(storedPassword)) {
+        try {
+          const hashed = await hashPassword(password)
+          const upgradedUsers = systemUsers.map((u) =>
+            u.id === matchedUser.id ? { ...u, password: hashed } : u
+          )
+          localStorage.setItem('system_users', JSON.stringify(upgradedUsers))
+        } catch (e) {
+          console.error('Password upgrade failed:', e)
+        }
+      }
       sessionStorage.setItem('is_logged_in', 'true')
       sessionStorage.setItem('current_username', matchedUser.username)
       sessionStorage.setItem('current_display_name', matchedUser.displayName || matchedUser.username)
@@ -133,10 +155,41 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 p-4 font-arabic select-none" dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-100 dark:bg-zinc-950 p-4 font-arabic select-none app-drag-region overflow-hidden" dir="rtl">
+      {/* Top Drag Handle Strip */}
+      <div className="absolute top-0 left-0 right-0 h-10 app-drag-region z-10 pointer-events-auto" />
+
+      {/* Decorative Bottom-Right Graphic: Formula 1 (خارج الصندوق الأبيض) */}
+      <motion.div
+        initial={{ opacity: 0, y: 25, scale: 0.92 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, delay: 0.15 }}
+        className="absolute bottom-2 right-2 sm:bottom-4 sm:right-6 lg:bottom-6 lg:right-8 z-10 pointer-events-none select-none"
+      >
+        <img
+          src={formula1Img}
+          alt="Formula 1"
+          className="w-36 h-36 sm:w-48 sm:h-48 md:w-56 md:h-56 lg:w-64 lg:h-64 object-contain drop-shadow-2xl"
+        />
+      </motion.div>
+
+      {/* Decorative Bottom-Left Graphic: Arcade (خارج الصندوق الأبيض) */}
+      <motion.div
+        initial={{ opacity: 0, y: 25, scale: 0.92 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, delay: 0.2 }}
+        className="absolute bottom-2 left-2 sm:bottom-4 sm:left-6 lg:bottom-6 lg:left-8 z-10 pointer-events-none select-none"
+      >
+        <img
+          src={arcadeImg}
+          alt="Arcade"
+          className="w-36 h-36 sm:w-48 sm:h-48 md:w-56 md:h-56 lg:w-64 lg:h-64 object-contain drop-shadow-2xl"
+        />
+      </motion.div>
+
       {/* Outer Card Container */}
-      <div className="max-w-4xl w-full h-[580px] bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-200/80 dark:border-zinc-800 flex overflow-hidden">
-        
+      <div className="max-w-4xl w-full h-[580px] bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-200/80 dark:border-zinc-800 flex overflow-hidden relative z-20 app-no-drag">
+
         {/* RIGHT PANEL: RANDOM BACKGROUND IMAGE */}
         <div className="hidden md:block w-1/2 h-full relative overflow-hidden bg-zinc-900">
           <img
@@ -146,32 +199,24 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
           <div className="absolute bottom-6 right-6 left-6 text-white text-right space-y-1">
-            <h3 className="font-bold text-lg drop-shadow-md">منظومة سلة الخير</h3>
+            <h3 className="font-bold text-lg drop-shadow-md">منتجع MJS</h3>
             <p className="text-xs text-zinc-200 drop-shadow-sm font-medium">إدارة السيولة والخزينة والحسابات بكل دقة وأمان</p>
           </div>
         </div>
 
         {/* LEFT PANEL: FORM AREA (RTL ARABIC) */}
         <div className="w-full md:w-1/2 h-full p-8 md:p-10 flex flex-col justify-between overflow-y-auto bg-white dark:bg-zinc-900">
-          
+
           {/* Header Logos & Title */}
           <div>
-            {/* TOP LOGOS (SIDE-BY-SIDE) */}
-            <div className="flex items-center justify-center gap-4 mb-6">
-              {/* Eagle Emblem */}
-              <img
-                src={eagleImg}
-                alt="الشعار الوطني"
-                className="w-16 h-16 object-contain mix-blend-multiply dark:brightness-125 dark:contrast-125 filter drop-shadow-md"
-                onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
-              />
-
+            {/* Top Logo */}
+            <div className="flex items-center justify-center mb-6">
               {/* System Circular Logo */}
-              <div className="relative w-14 h-14 bg-white dark:bg-zinc-300 rounded-full border-2 border-black dark:border-white shadow-md flex items-center justify-center shrink-0 overflow-hidden p-0">
+              <div className="relative w-16 h-16 bg-white dark:bg-zinc-300 rounded-full border-2 border-black dark:border-white shadow-md flex items-center justify-center shrink-0 overflow-hidden p-0">
                 <img
                   src={logoImg}
-                  alt="شعار سلة الخير"
-                  className="w-full h-full object-cover scale-[1.12]"
+                  alt="شعار منتجع MJS"
+                  className="w-full h-full object-cover scale-[1.08]"
                   style={{ imageRendering: 'crisp-edges' }}
                   onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
                 />
@@ -184,7 +229,7 @@ export function LoginPage({ onLoginSuccess }: LoginPageProps) {
                 مرحباً بعودتك
               </h1>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 font-medium">
-                تسجيل الدخول إلى حساب منظومة سلة الخير
+                تسجيل الدخول إلى حساب منتجع MJS
               </p>
             </div>
           </div>

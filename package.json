@@ -1,10 +1,10 @@
 {
   "name": "sallat-alkhair",
-  "productName": "منظومة سلة الخير للمعاملات المالية",
-  "description": "منظومة سلة الخير لإدارة السيولة والمعاملات المالية والخزينة",
-  "author": "سلة الخير",
+  "productName": "منتجع MJS للمعاملات المالية",
+  "description": "منظومة منتجع MJS لإدارة السيولة والمعاملات المالية والخزينة",
+  "author": "منتجع MJS",
   "private": true,
-  "version": "1.0.7",
+  "version": "1.0.8",
   "type": "module",
   "scripts": {
     "start": "vite",

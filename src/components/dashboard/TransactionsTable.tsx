@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import {
   Eye, Printer, Plus, CheckSquare, Filter,
-  ChevronLeft, ChevronRight, Pin, Trash2, Archive, FileText, Edit3, Loader2,
+  ChevronLeft, ChevronRight, Pin, Trash2, Archive, FileText, Edit3, Loader2, Download,
 } from 'lucide-react'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
 import { formatCurrency, formatDate, filterTransactionsByDate } from '@/lib/utils'
@@ -34,6 +34,7 @@ import {
 } from '@/lib/soundEffects'
 
 import { initMockElectronAPI } from '@/lib/mockApi'
+import { exportTransactionsToCsv } from '@/lib/exportUtils'
 
 const PAGE_SIZE = 8
 
@@ -468,7 +469,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
     }
 
     const txEntities = data.map((t) => t.client_name?.trim()).filter(Boolean) as string[]
-    const combined = Array.from(new Set([...custom, ...txEntities, 'سلة الخير'])).filter(Boolean)
+    const combined = Array.from(new Set([...custom, ...txEntities, 'منتجع MJS'])).filter(Boolean)
     return combined.sort((a, b) => a.localeCompare(b, 'ar'))
   }, [data, modalOpen])
 
@@ -606,6 +607,27 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
             >
               <Printer className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
               <span>{selectedIds.length > 0 ? `طباعة المحدد (${selectedIds.length})` : 'طباعة تقرير'}</span>
+            </Button>
+
+            <Button
+              id="export-csv-btn"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                logUserAction('EXPORT_CSV', 'تقارير وطباعة', 'تصدير معاملات CSV من جدول المعاملات', `عدد السجلات: ${total}`)
+                // Export all currently loaded data
+                if (window.electronAPI?.getTransactions) {
+                  window.electronAPI.getTransactions({ page: 1, pageSize: 10000, status: 'ACTIVE', search: searchValue, type: typeFilter === 'ALL' ? 'ALL' : typeFilter })
+                    .then((res) => exportTransactionsToCsv(res.data || []))
+                    .catch(() => exportTransactionsToCsv(data))
+                } else {
+                  exportTransactionsToCsv(data)
+                }
+              }}
+              className="h-8 gap-1.5 text-xs text-cyan-700 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-500/10 border-cyan-200 dark:border-cyan-500/20 hover:bg-cyan-100 dark:hover:bg-cyan-500/20 font-arabic font-medium shadow-xs"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>تصدير CSV</span>
             </Button>
 
             {canEditData && (

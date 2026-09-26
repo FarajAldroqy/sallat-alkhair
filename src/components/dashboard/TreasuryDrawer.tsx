@@ -9,7 +9,6 @@ import type { DateFilter } from '@/types'
 import { usePermission } from '@/hooks/usePermission'
 import { logUserAction } from '@/lib/auditLogger'
 import logoImg from '@/assets/logo.png'
-import eagleImg from '@/assets/eagle.png'
 
 export type DrawerMode = 'ADD_ENTITY' | 'PRINT_REPORT' | 'ADVANCED_FILTER' | null
 
@@ -200,19 +199,21 @@ export function TreasuryDrawer({
 
           {/* Paper Header */}
           <div className="flex items-center justify-between border-b-2 border-zinc-900 pb-4 mb-4 gap-4" dir="rtl">
-            {/* Right: Enlarged Salla Logo (أقصى اليمين) */}
+            {/* Right: MJS Logo (Circle Shape) */}
             <div className="flex items-center justify-start shrink-0">
-              <img
-                src={logoImg}
-                alt="شعار سلة الخير"
-                className="w-28 h-28 sm:w-32 sm:h-32 object-contain drop-shadow-sm"
-                onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
-              />
+              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-zinc-900 bg-white p-0.5 flex items-center justify-center shadow-xs">
+                <img
+                  src={logoImg}
+                  alt="شعار منتجع MJS"
+                  className="w-full h-full object-cover rounded-full"
+                  onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+                />
+              </div>
             </div>
 
             {/* Center: System Header Text (في الوسط) */}
             <div className="text-center flex-1 space-y-1">
-              <h1 className="text-xl sm:text-2xl font-black text-zinc-950 tracking-tight">سلة الخير للمعاملات المالية</h1>
+              <h1 className="text-xl sm:text-2xl font-black text-zinc-950 tracking-tight">منتجع MJS للمعاملات المالية</h1>
               <p className="text-sm font-extrabold text-zinc-700">تقرير مستحقات وأرصدة الخزينة والجهات</p>
               <div className="flex items-center justify-center gap-3 text-xs font-bold text-zinc-600 ar-num flex-wrap pt-0.5">
                 <span>تاريخ التقرير: {new Date().toLocaleDateString('ar-LY')}</span>
@@ -220,15 +221,8 @@ export function TreasuryDrawer({
               </div>
             </div>
 
-            {/* Left: Eagle Logo (أقصى اليسار) */}
-            <div className="flex items-center justify-end shrink-0">
-              <img
-                src={eagleImg}
-                alt="شعار النسر"
-                className="w-18 h-18 sm:w-20 sm:h-20 object-contain mix-blend-multiply"
-                onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
-              />
-            </div>
+            {/* Left: Spacer Balancer */}
+            <div className="w-24 sm:w-28 shrink-0 hidden sm:block pointer-events-none" />
           </div>
 
           {/* Active Period Range Highlight Box */}
@@ -493,29 +487,24 @@ export function TreasuryDrawer({
                       {/* Paper Header */}
                       <div className="flex items-center justify-between border-b pb-3 border-zinc-200 gap-3" dir="rtl">
                         <div className="flex items-center justify-start shrink-0">
-                          <img
-                            src={logoImg}
-                            alt="شعار سلة الخير"
-                            className="w-20 h-20 sm:w-24 sm:h-24 object-contain drop-shadow-sm"
-                            onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
-                          />
+                          <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-full overflow-hidden border-2 border-zinc-900 bg-white p-0.5 flex items-center justify-center shadow-xs">
+                            <img
+                              src={logoImg}
+                              alt="شعار منتجع MJS"
+                              className="w-full h-full object-cover rounded-full"
+                              onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+                            />
+                          </div>
                         </div>
                         <div className="text-center flex-1 space-y-0.5">
-                          <h3 className="text-sm font-extrabold text-zinc-900">سلة الخير — تقرير مستحقات الخزينة</h3>
+                          <h3 className="text-sm font-extrabold text-zinc-900">منتجع MJS — تقرير مستحقات الخزينة</h3>
                           <p className="text-[11px] text-emerald-700 font-bold">{getDateFilterText(dateFilter)}</p>
                           <div className="text-[10px] text-zinc-500 ar-num flex items-center justify-center gap-2 pt-0.5">
                             <span>تاريخ: {new Date().toLocaleDateString('ar-LY')}</span>
                             <span>عدد الجهات: {entities.length}</span>
                           </div>
                         </div>
-                        <div className="flex items-center justify-end shrink-0">
-                          <img
-                            src={eagleImg}
-                            alt="شعار النسر"
-                            className="w-14 h-14 sm:w-16 sm:h-16 object-contain mix-blend-multiply"
-                            onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
-                          />
-                        </div>
+                        <div className="w-18 sm:w-20 shrink-0 hidden sm:block pointer-events-none" />
                       </div>
 
                       {/* Mini Summary Totals */}

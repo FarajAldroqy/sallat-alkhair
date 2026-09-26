@@ -56,7 +56,8 @@ export function TransactionModal({ open, mode, onClose, onSubmit, entities = [] 
 
   const reset = () => {
     setTab('REGULAR')
-    setClientName('')
+    // Default to 'منتجع MJS' as the primary entity if available
+    setClientName('منتجع MJS')
     setPersonName('')
     setPersonNames([''])
     setAmountStr('')
@@ -182,7 +183,10 @@ export function TransactionModal({ open, mode, onClose, onSubmit, entities = [] 
   }
 
   const hasSavedEntities = entities.length > 0
-  const entitiesList = Array.from(new Set([...entities, 'الخزينة الكلية'])).sort((a, b) => {
+  // Build entities list: منتجع MJS first, then الخزينة الكلية, then the rest sorted alphabetically
+  const entitiesList = Array.from(new Set(['منتجع MJS', ...entities, 'الخزينة الكلية'])).sort((a, b) => {
+    if (a === 'منتجع MJS') return -1
+    if (b === 'منتجع MJS') return 1
     if (a === 'الخزينة الكلية') return -1
     if (b === 'الخزينة الكلية') return 1
     return a.localeCompare(b, 'ar')

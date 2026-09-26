@@ -2,7 +2,6 @@ import { useMemo } from 'react'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { Transaction } from '@/types'
 import logoImg from '@/assets/logo.png'
-import eagleImg from '@/assets/eagle.png'
 
 interface PrintReceiptProps {
   transaction: Transaction | null
@@ -68,41 +67,31 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
     receiptTitle = isDeposit ? 'إيصال قبض (إيداع من شخص)' : 'إيصال صرف (سحب للأشخاص)'
   }
 
-  const isSallatAlkhair = transaction.client_name?.trim() === 'سلة الخير'
-
   const renderSingleReceiptCopy = (copyKey: string) => (
     <div
       key={copyKey}
       className="w-full h-[134mm] border-2 border-zinc-900 rounded-2xl p-4 bg-white flex flex-col justify-between box-border relative overflow-hidden font-arabic text-zinc-950"
       dir="rtl"
     >
-      {/* Large Background Watermark for "سلة الخير" */}
-      {isSallatAlkhair && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-          <img
-            src={logoImg}
-            alt="العلامة المائية"
-            className="w-[75%] h-[65%] object-contain opacity-75 dark:opacity-60 mix-blend-multiply"
-          />
-        </div>
-      )}
 
         {/* Top Header Row */}
         <div className="relative z-10">
           <div className="flex items-center justify-between pb-2 border-b-2 border-zinc-900 gap-3" dir="rtl">
-            {/* Far Right (أقصى اليمين): Enlarged Salla App Logo */}
+            {/* Far Right: MJS App Logo (Circle Shape) */}
             <div className="flex items-center justify-start shrink-0">
-              <img
-                src={logoImg}
-                alt="شعار سلة الخير"
-                className="w-24 h-24 sm:w-28 sm:h-28 object-contain drop-shadow-sm"
-                onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
-              />
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-2 border-zinc-900 bg-white p-0.5 flex items-center justify-center shadow-xs">
+                <img
+                  src={logoImg}
+                  alt="شعار منتجع MJS"
+                  className="w-full h-full object-cover rounded-full"
+                  onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+                />
+              </div>
             </div>
 
             {/* Center (في الوسط): System Title, Receipt Type & Serial Number */}
             <div className="text-center flex-1 space-y-1.5">
-              <h1 className="font-black text-xl sm:text-2xl text-zinc-950 tracking-tight leading-tight">سلة الخير للمعاملات المالية</h1>
+              <h1 className="font-black text-xl sm:text-2xl text-zinc-950 tracking-tight leading-tight">منتجع MJS للمعاملات المالية</h1>
               <div className="flex items-center justify-center gap-2 flex-wrap">
                 <div className="inline-block px-3.5 py-1 rounded-lg bg-zinc-950 text-white font-black text-xs sm:text-sm shadow-xs">
                   {receiptTitle}
@@ -113,15 +102,8 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
               </div>
             </div>
 
-            {/* Far Left (أقصى اليسار): Enlarged Eagle Logo */}
-            <div className="flex items-center justify-end shrink-0">
-              <img
-                src={eagleImg}
-                alt="شعار النسر"
-                className="w-16 h-16 sm:w-18 sm:h-18 object-contain mix-blend-multiply"
-                onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
-              />
-            </div>
+            {/* Far Left Spacer Balancer */}
+            <div className="w-20 sm:w-24 shrink-0 hidden sm:block pointer-events-none" />
           </div>
 
         {/* Data Fields Grid (Large Fonts + Compact Vertical Padding) */}

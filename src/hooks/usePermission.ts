@@ -47,9 +47,23 @@ export function usePermission() {
     return ALL_PERMISSIONS
   }, [currentUsername])
 
-  const hasPermission = (_permissionId?: SystemPermission | string): boolean => {
-    return true
+  const isAdmin = useMemo(() => {
+    const storedUsers = localStorage.getItem('system_users')
+    if (!storedUsers) return true // no DB → default admin
+    try {
+      const users: any[] = JSON.parse(storedUsers)
+      const hasAdminInDb = users.some((u) => u.username.toLowerCase() === 'admin')
+      return currentUsername.toLowerCase() === 'admin' || !hasAdminInDb || !currentUsername
+    } catch {
+      return true
+    }
+  }, [currentUsername])
+
+  const hasPermission = (permissionId?: SystemPermission | string): boolean => {
+    if (!permissionId) return true
+    if (isAdmin) return true
+    return permissions.includes(permissionId as string)
   }
 
-  return { permissions: ALL_PERMISSIONS, hasPermission, isAdmin: true }
+  return { permissions, hasPermission, isAdmin }
 }

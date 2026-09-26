@@ -60,59 +60,59 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        'bg-white dark:bg-zinc-900 flex flex-col justify-between h-full shrink-0 border-r border-zinc-200/80 dark:border-zinc-800 select-none text-zinc-900 dark:text-zinc-100 transition-all duration-300 ease-in-out overflow-y-auto',
+        'bg-white dark:bg-[#090d16] flex flex-col justify-between h-full shrink-0 border-r border-slate-200/80 dark:border-slate-800/80 select-none text-slate-900 dark:text-slate-100 transition-all duration-300 ease-in-out overflow-y-auto',
         isOpen ? 'w-60 opacity-100' : 'w-0 opacity-0 border-r-0 pointer-events-none'
       )}
     >
-      {/* 1. Header / Logo (سلة الخير) */}
-      <div className="flex items-center justify-between px-3.5 py-3 whitespace-nowrap">
+      {/* 1. Header / Logo (منتجع MJS) */}
+      <div className="flex items-center justify-between px-3.5 pt-7 pb-3 whitespace-nowrap app-drag-region">
         <div className="flex items-center gap-1 font-arabic">
-          <div className="relative w-14 h-14 bg-white dark:bg-zinc-300 rounded-full border-2 border-black dark:border-white shadow-md flex items-center justify-center shrink-0 overflow-hidden p-0">
+          <div className="relative w-14 h-14 bg-white dark:bg-slate-900 rounded-full border-2 border-cyan-500/40 dark:border-cyan-400/50 shadow-md shadow-cyan-500/10 flex items-center justify-center shrink-0 overflow-hidden p-0">
             <img
               src={logoImg}
-              alt="شعار سلة الخير"
+              alt="شعار منتجع MJS"
               className="w-full h-full object-cover scale-[1.12]"
               style={{ imageRendering: 'crisp-edges' }}
               onError={(e) => {
                 (e.target as HTMLElement).style.display = 'none'
               }}
             />
-            <span className="absolute text-lg font-black text-emerald-700 font-arabic -z-10">
-              س
+            <span className="absolute text-lg font-black text-cyan-600 font-arabic -z-10">
+              م
             </span>
           </div>
           <div className="flex flex-col text-right translate-y-[7px] -mr-1">
-            <span className="font-extrabold text-2xl text-zinc-900 dark:text-zinc-100 leading-none tracking-tight">
-              سلة الخير
+            <span className="font-extrabold text-2xl text-slate-900 dark:text-slate-100 leading-none tracking-tight">
+              منتجع MJS
             </span>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 font-medium">
+            <span className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
               إدارة السيولة والخزينة
             </span>
           </div>
         </div>
       </div>
 
-      {/* Active Logged-In User Button Row (Black in light mode, White in dark mode) */}
+      {/* Active Logged-In User Button Row (MJS Dark Slate Theme) */}
       <div className="px-3 pb-3 flex items-center gap-1.5 whitespace-nowrap">
         <button
           id="sidebar-user-audit-btn"
           onClick={onOpenUserAudit}
-          className="flex-1 bg-black text-white dark:bg-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-100 text-xs font-bold py-2 px-3 rounded-lg flex items-center justify-between shadow-sm transition-all active:scale-[0.98] cursor-pointer font-arabic"
+          className="flex-1 bg-slate-900 text-white dark:bg-slate-800/90 dark:text-white hover:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold py-2 px-3 rounded-xl flex items-center justify-between shadow-xs border border-slate-700/50 transition-all active:scale-[0.98] cursor-pointer font-arabic"
           title="عرض سجل عمليات الأسبوع وسياسة عدم الإنكار"
         >
           <div className="flex items-center gap-2 truncate">
-            <div className="w-4 h-4 rounded-full bg-zinc-700 dark:bg-zinc-300 flex items-center justify-center shrink-0">
-              <User className="w-3 h-3 text-white dark:text-zinc-900" />
+            <div className="w-4 h-4 rounded-full bg-slate-700 dark:bg-slate-600 flex items-center justify-center shrink-0">
+              <User className="w-3 h-3 text-white dark:text-slate-200" />
             </div>
             <span className="truncate font-bold text-xs">{currentDisplayName}</span>
           </div>
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" title="متصل الآن" />
+          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shrink-0 shadow-[0_0_8px_rgba(6,182,212,0.8)]" title="متصل الآن" />
         </button>
 
         <button
           type="button"
           onClick={onOpenNotes}
-          className="p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-xl transition-all border border-zinc-200 dark:border-zinc-700 relative cursor-pointer active:scale-95 shrink-0"
+          className="p-2 bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl transition-all border border-slate-200 dark:border-slate-700 relative cursor-pointer active:scale-95 shrink-0"
           title="الملاحظات والمفكرة"
         >
           <Mail className="w-4 h-4" />
@@ -129,22 +129,22 @@ export function Sidebar({
               key={item.id}
               onClick={() => onNavigate(item.id)}
               className={cn(
-                'w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors cursor-pointer',
+                'w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer',
                 isActive
-                  ? 'bg-zinc-100 dark:bg-zinc-800'
-                  : 'hover:bg-zinc-100/70 dark:hover:bg-zinc-800/70'
+                  ? 'bg-cyan-500/10 dark:bg-cyan-500/15 text-cyan-800 dark:text-cyan-300 font-bold border-r-2 border-cyan-500 shadow-xs'
+                  : 'hover:bg-slate-100/80 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300'
               )}
             >
               {/* RIGHT GROUP (اليمين): الأيقونة والاسم العربي بالبولد */}
               <div className="flex items-center gap-2">
-                <Icon className="w-5 h-5 text-zinc-700 dark:text-zinc-300 shrink-0" />
-                <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100 font-arabic">
+                <Icon className={cn("w-5 h-5 shrink-0 transition-colors", isActive ? "text-cyan-600 dark:text-cyan-400" : "text-slate-500 dark:text-slate-400")} />
+                <span className={cn("font-bold text-sm font-arabic transition-colors", isActive ? "text-cyan-900 dark:text-cyan-200" : "text-slate-900 dark:text-slate-100")}>
                   {item.labelAr}
                 </span>
               </div>
 
               {/* LEFT GROUP (اليسار): الاسم الإنجليزي */}
-              <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+              <span className={cn("text-xs font-medium transition-colors", isActive ? "text-cyan-600/80 dark:text-cyan-400/80" : "text-slate-400 dark:text-slate-500")}>
                 {item.label}
               </span>
             </button>
@@ -155,20 +155,20 @@ export function Sidebar({
         {hasArchivedItems && (
           <button
             onClick={onOpenArchive}
-            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-950/60 bg-sky-50/40 dark:bg-sky-950/20 border border-sky-200/60 dark:border-sky-900/40"
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors cursor-pointer hover:bg-cyan-50 dark:hover:bg-cyan-950/60 bg-cyan-50/40 dark:bg-cyan-950/20 border border-cyan-200/60 dark:border-cyan-900/40"
           >
             {/* RIGHT GROUP (اليمين): الأيقونة والاسم العربي بالبولد */}
             <div className="flex items-center gap-2">
-              <Archive className="w-5 h-5 text-sky-500 shrink-0" />
-              <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100 font-arabic">
+              <Archive className="w-5 h-5 text-cyan-500 shrink-0" />
+              <span className="font-bold text-sm text-slate-900 dark:text-slate-100 font-arabic">
                 الأرشيف
               </span>
             </div>
 
             {/* LEFT GROUP (اليسار): الاسم الإنجليزي والعداد */}
-            <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium flex items-center gap-1">
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
               <span>Archive</span>
-              <span className="px-1.5 py-0.2 bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 rounded-full text-[10px] font-bold ar-num">
+              <span className="px-1.5 py-0.2 bg-cyan-100 dark:bg-cyan-900 text-cyan-700 dark:text-cyan-300 rounded-full text-[10px] font-bold ar-num">
                 {archivedCount}
               </span>
             </span>
@@ -184,13 +184,13 @@ export function Sidebar({
             {/* RIGHT GROUP (اليمين): الأيقونة والاسم العربي بالبولد */}
             <div className="flex items-center gap-2">
               <Trash2 className="w-5 h-5 text-rose-500 shrink-0" />
-              <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100 font-arabic">
+              <span className="font-bold text-sm text-slate-900 dark:text-slate-100 font-arabic">
                 سلة المهملات
               </span>
             </div>
 
             {/* LEFT GROUP (اليسار): الاسم الإنجليزي والعداد */}
-            <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium flex items-center gap-1">
+            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
               <span>Trash</span>
               <span className="px-1.5 py-0.2 bg-rose-100 dark:bg-rose-900 text-rose-700 dark:text-rose-300 rounded-full text-[10px] font-bold ar-num">
                 {deletedCount}
@@ -204,21 +204,21 @@ export function Sidebar({
       </div>
 
       {/* 4. Settings Button at the very bottom */}
-      <div className="p-3 border-t border-zinc-200/80 dark:border-zinc-800">
+      <div className="p-3 border-t border-slate-200/80 dark:border-slate-800">
         <button
           onClick={onOpenSettings}
-          className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
+          className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
         >
           {/* Right Group: Settings Icon + Bold Text "الإعدادات" */}
           <div className="flex items-center gap-2">
-            <Settings className="w-5 h-5 text-zinc-700 dark:text-zinc-300 shrink-0" />
-            <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100 font-arabic">
+            <Settings className="w-5 h-5 text-slate-600 dark:text-slate-400 shrink-0" />
+            <span className="font-bold text-sm text-slate-900 dark:text-slate-100 font-arabic">
               الإعدادات
             </span>
           </div>
 
           {/* Left Group: Small English label "Settings" */}
-          <span className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
             Settings
           </span>
         </button>

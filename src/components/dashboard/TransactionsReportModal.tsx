@@ -8,7 +8,6 @@ import type { Transaction, Stats, DateFilter } from '@/types'
 import { usePermission } from '@/hooks/usePermission'
 import { logUserAction } from '@/lib/auditLogger'
 import logoImg from '@/assets/logo.png'
-import eagleImg from '@/assets/eagle.png'
 
 interface ColumnToggles {
   clientName: boolean
@@ -148,16 +147,16 @@ export function TransactionsReportModal({
         {/* Printable Document Header */}
         <div className="flex items-center justify-between pb-4 border-b-2 border-zinc-900 mb-6 gap-4" dir="rtl">
           <div className="flex items-center justify-start shrink-0">
-            <img src={logoImg} alt="شعار سلة الخير" className="w-28 h-28 sm:w-32 sm:h-32 object-contain drop-shadow-sm" />
+            <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-zinc-900 bg-white p-0.5 flex items-center justify-center shadow-xs">
+              <img src={logoImg} alt="شعار منتجع MJS" className="w-full h-full object-cover rounded-full" />
+            </div>
           </div>
           <div className="text-center flex-1 space-y-1">
-            <h1 className="font-black text-2xl text-zinc-950 tracking-tight leading-tight">سلة الخير للمعاملات المالية</h1>
+            <h1 className="font-black text-2xl text-zinc-950 tracking-tight leading-tight">منتجع MJS للمعاملات المالية</h1>
             <p className="text-sm font-extrabold text-zinc-700">تقرير المعاملات والحركات المالية المخصصة</p>
             <p className="text-xs text-zinc-500 font-bold ar-num">{filterText}</p>
           </div>
-          <div className="flex items-center justify-end shrink-0">
-            <img src={eagleImg} alt="شعار النسر" className="w-18 h-18 sm:w-20 sm:h-20 object-contain mix-blend-multiply" />
-          </div>
+          <div className="w-24 sm:w-28 shrink-0 hidden sm:block pointer-events-none" />
         </div>
 
         {/* Printable KPI Cards (If selected) */}
@@ -433,16 +432,16 @@ export function TransactionsReportModal({
                 {/* Preview Document Header */}
                 <div className="flex items-center justify-between pb-4 border-b-2 border-zinc-900 gap-4" dir="rtl">
                   <div className="flex items-center justify-start shrink-0">
-                    <img src={logoImg} alt="شعار سلة الخير" className="w-28 h-28 sm:w-32 sm:h-32 object-contain drop-shadow-sm" />
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-zinc-900 bg-white p-0.5 flex items-center justify-center shadow-xs">
+                      <img src={logoImg} alt="شعار منتجع MJS" className="w-full h-full object-cover rounded-full" />
+                    </div>
                   </div>
                   <div className="text-center flex-1 space-y-1">
-                    <h1 className="font-black text-xl sm:text-2xl text-zinc-950 tracking-tight leading-tight">سلة الخير للمعاملات المالية</h1>
+                    <h1 className="font-black text-xl sm:text-2xl text-zinc-950 tracking-tight leading-tight">منتجع MJS للمعاملات المالية</h1>
                     <p className="text-xs sm:text-sm font-extrabold text-zinc-700">تقرير المعاملات والحركات المالية المخصصة</p>
                     <p className="text-[11px] sm:text-xs text-zinc-500 font-bold ar-num">{filterText}</p>
                   </div>
-                  <div className="flex items-center justify-end shrink-0">
-                    <img src={eagleImg} alt="شعار النسر" className="w-18 h-18 sm:w-20 sm:h-20 object-contain mix-blend-multiply" />
-                  </div>
+                  <div className="w-24 sm:w-28 shrink-0 hidden sm:block pointer-events-none" />
                 </div>
 
                 {/* Preview KPI Cards */}

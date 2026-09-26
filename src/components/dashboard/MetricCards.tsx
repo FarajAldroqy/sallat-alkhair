@@ -81,23 +81,23 @@ export function MetricCards({ stats, loading }: MetricCardsProps) {
       {/* CARD 2: TOTAL DEPOSITS (مجموع الإيداعات) */}
       <Card
         id="metric-total-deposits"
-        className="subtle-card rounded-2xl p-5 shadow-xs border border-zinc-200/80 dark:border-zinc-800/80 bg-white dark:bg-zinc-900/90 hover:border-emerald-300 dark:hover:border-emerald-800 transition-all group"
+        className="subtle-card rounded-2xl p-5 shadow-xs border border-slate-200/80 dark:border-slate-800/80 bg-white dark:bg-[#0d1322] hover:border-cyan-400 dark:hover:border-cyan-600 transition-all group"
       >
         <CardContent className="p-0">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
+            <span className="text-xs font-bold text-slate-500 dark:text-slate-400">
               مجموع الإيداعات
             </span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/80 flex items-center justify-center text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
+            <div className="w-9 h-9 rounded-xl bg-cyan-50 dark:bg-cyan-950/60 border border-cyan-200 dark:border-cyan-800/80 flex items-center justify-center text-cyan-600 dark:text-cyan-400 group-hover:scale-105 transition-transform">
               <ArrowUpRight className="w-5 h-5" />
             </div>
           </div>
 
-          <div className="text-2xl font-black tracking-tight text-emerald-600 dark:text-emerald-400 mb-3 ar-num">
+          <div className="text-2xl font-black tracking-tight text-cyan-600 dark:text-cyan-400 mb-3 ar-num">
             {formatCurrency(currentStats.total_deposits_cents)}
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
             <span>إجمالي المقبوضات والمودعات بالكامل</span>
           </div>
         </CardContent>

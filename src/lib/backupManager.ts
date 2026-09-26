@@ -1,8 +1,8 @@
 // Web Crypto API Encrypted Data Backup & 7-Version Rolling Backup Manager
 // Pure TypeScript, zero external dependencies.
 
-const PASSPHRASE = 'SALLAT_AL_KHAIR_SECURE_KEY_2026'
-const SALT = new TextEncoder().encode('SALAT_AL_KHAIR_SALT_2026')
+import { getOrCreateDeviceKey } from './cryptoUtils'
+
 const MAX_ROLLING_BACKUPS = 7
 const ROLLING_KEY = 'system_rolling_backups'
 
@@ -33,9 +33,13 @@ export interface RollingBackupItem {
  */
 async function getCryptoKey(): Promise<CryptoKey> {
   const enc = new TextEncoder()
+  // Use device-unique key instead of hardcoded passphrase
+  const devicePassphrase = getOrCreateDeviceKey()
+  const dynamicSalt = new TextEncoder().encode(`MJS_RESORT_SALT_${devicePassphrase.slice(0, 8)}`)
+
   const keyMaterial = await window.crypto.subtle.importKey(
     'raw',
-    enc.encode(PASSPHRASE),
+    enc.encode(devicePassphrase),
     'PBKDF2',
     false,
     ['deriveKey']
@@ -43,7 +47,7 @@ async function getCryptoKey(): Promise<CryptoKey> {
   return window.crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: SALT,
+      salt: dynamicSalt,
       iterations: 100000,
       hash: 'SHA-256',
     },

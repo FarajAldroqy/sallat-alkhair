@@ -94,6 +94,11 @@ function initDatabase() {
     if (!colNames.has('is_deleted')) {
       try { db.exec(`ALTER TABLE transactions ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0`) } catch {}
     }
+
+    // Migrate legacy system entity name 'سلة الخير' to 'منتجع MJS'
+    try {
+      db.prepare(`UPDATE transactions SET client_name = 'منتجع MJS' WHERE client_name = 'سلة الخير'`).run()
+    } catch {}
   } catch (e) {
     console.error('Migration error:', e)
   }
@@ -526,7 +531,7 @@ function registerIpcHandlers() {
   ipcMain.handle('db:update-entity-name', (_event, params: { oldName: string; newName: string }) => {
     try {
       if (!params.oldName || !params.newName) return { success: false, message: 'بيانات غير مكتملة' }
-      if (params.oldName.trim() === 'سلة الخير') return { success: false, message: 'لا يمكن تعديل اسم جهة سلة الخير' }
+      if (params.oldName.trim() === 'منتجع MJS') return { success: false, message: 'لا يمكن تعديل اسم جهة منتجع MJS' }
       const stmt = db.prepare('UPDATE transactions SET client_name = ? WHERE client_name = ?')
       const res = stmt.run(params.newName.trim(), params.oldName.trim())
       return { success: true, updatedCount: res.changes }
@@ -637,12 +642,13 @@ let isQuitting = false
 
 function createWindow() {
   win = new BrowserWindow({
-    title: 'منظومة سلة الخير للمعاملات المالية',
+    title: 'منتجع MJS للمعاملات المالية',
     width: 1400,
     height: 900,
     minWidth: 1100,
     minHeight: 700,
-    titleBarStyle: 'hiddenInset',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    trafficLightPosition: { x: 18, y: 16 },
     autoHideMenuBar: true,
     icon: path.join(process.env.VITE_PUBLIC!, 'logo.png'),
     webPreferences: {

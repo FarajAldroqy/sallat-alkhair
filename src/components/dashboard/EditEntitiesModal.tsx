@@ -40,8 +40,8 @@ export function EditEntitiesModal({
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Filter out system entity 'سلة الخير' from selectable editable list or show as disabled
-  const selectableEntities = entities.filter((e) => e.name !== 'سلة الخير')
+  // Filter out system entity 'منتجع MJS' from selectable editable list or show as disabled
+  const selectableEntities = entities.filter((e) => e.name !== 'منتجع MJS')
 
   useEffect(() => {
     if (open) {
@@ -73,8 +73,8 @@ export function EditEntitiesModal({
       return
     }
 
-    if (trimmedOld === 'سلة الخير') {
-      setError('عذراً، جهة سلة الخير جهة أساسية في المنظومة لا يمكن تعديل تسميتها')
+    if (trimmedOld === 'منتجع MJS') {
+      setError('عذراً، جهة منتجع MJS جهة أساسية في المنظومة لا يمكن تعديل تسميتها')
       return
     }
 

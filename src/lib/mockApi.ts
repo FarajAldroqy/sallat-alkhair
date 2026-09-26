@@ -37,7 +37,7 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
   },
   {
     id: 3,
-    client_name: 'سلة الخير',
+    client_name: 'منتجع MJS',
     type: 'DEPOSIT',
     amount_cents: 50000000,
     payment_method: 'نقداً',

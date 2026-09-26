@@ -7,7 +7,6 @@ import { formatCurrency, getDateFilterText, filterTransactionsByDate } from '@/l
 import type { Transaction, DateFilter } from '@/types'
 import { usePermission } from '@/hooks/usePermission'
 import logoImg from '@/assets/logo.png'
-import eagleImg from '@/assets/eagle.png'
 
 interface EntityLedgerModalProps {
   open: boolean
@@ -146,19 +145,21 @@ export function EntityLedgerModal({
 
           {/* Official Report Document Header */}
           <div className="flex items-center justify-between border-b-2 border-black pb-4 mb-4 gap-4" dir="rtl">
-            {/* Right: Enlarged Salla Logo (أقصى اليمين) */}
+            {/* Right: MJS Logo (Circle Shape) */}
             <div className="flex items-center justify-start shrink-0">
-              <img
-                src={logoImg}
-                alt="شعار سلة الخير"
-                className="w-28 h-28 sm:w-32 sm:h-32 object-contain drop-shadow-sm"
-                onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
-              />
+              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border-2 border-black bg-white p-0.5 flex items-center justify-center shadow-xs">
+                <img
+                  src={logoImg}
+                  alt="شعار منتجع MJS"
+                  className="w-full h-full object-cover rounded-full"
+                  onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
+                />
+              </div>
             </div>
 
             {/* Center: System Header & Entity Title Text (في الوسط) */}
             <div className="text-center flex-1 space-y-1">
-              <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight">سلة الخير للمعاملات المالية</h1>
+              <h1 className="text-xl sm:text-2xl font-black text-black tracking-tight">منتجع MJS للمعاملات المالية</h1>
               <p className="text-sm font-extrabold text-gray-800">
                 تقرير كشف حساب مالي — <span className="underline font-black text-black">{entityName}</span>
               </p>
@@ -171,15 +172,8 @@ export function EntityLedgerModal({
               </div>
             </div>
 
-            {/* Left: Eagle Logo (أقصى اليسار) */}
-            <div className="flex items-center justify-end shrink-0">
-              <img
-                src={eagleImg}
-                alt="شعار النسر"
-                className="w-18 h-18 sm:w-20 sm:h-20 object-contain mix-blend-multiply"
-                onError={(e) => { (e.target as HTMLElement).style.display = 'none' }}
-              />
-            </div>
+            {/* Left: Spacer Balancer */}
+            <div className="w-24 sm:w-28 shrink-0 hidden sm:block pointer-events-none" />
           </div>
 
           {/* Report Summary KPI Table */}

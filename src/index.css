@@ -4,90 +4,99 @@
 
 @layer base {
   :root {
-    /* ── Light Minimalist Theme (shadcn/ui blocks) ── */
-    --background: 0 0% 100%;       /* Pure white #ffffff */
-    --foreground: 240 10% 3.9%;     /* Dark zinc #09090b */
+    /* ── Light Luxury Resort Theme (MJS Arcade Zone) ── */
+    --background: 210 40% 98%;          /* Crisp slate white #f8fafc */
+    --foreground: 222 47% 11%;          /* Deep obsidian slate #0f172a */
 
-    --card: 240 4.8% 97.5%;         /* Soft zinc off-white #f8f8f9 */
-    --card-foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;                  /* Pure white #ffffff */
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 240 5.9% 10%;        /* Almost black #18181b */
-    --primary-foreground: 0 0% 98%;
+    --primary: 199 89% 44%;             /* MJS Electric Cyan #0284c7 */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 4.8% 95.9%;    /* Light gray #f4f4f5 */
-    --secondary-foreground: 240 5.9% 10%;
+    --secondary: 215 28% 95%;           /* Soft slate gray #f1f5f9 */
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 240 4.8% 95.9%;        /* #f4f4f5 */
-    --muted-foreground: 240 3.8% 46.1%; /* #71717a */
+    --muted: 215 28% 95%;               /* #f1f5f9 */
+    --muted-foreground: 215 16% 47%;    /* Slate muted text #64748b */
 
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --accent: 280 84% 60%;              /* MJS Neon Violet/Fuchsia #a855f7 */
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --success: 142.1 76.2% 36.3%;
-    --success-foreground: 355.7 100% 97.3%;
+    --success: 189 94% 43%;             /* MJS Cyan #06b6d4 */
+    --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 9%;
 
-    --border: 240 5.9% 90%;         /* Crisp light border #e4e4e7 */
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
+    --border: 214 32% 91%;              /* Crisp light border #e2e8f0 */
+    --input: 214 32% 91%;
+    --ring: 199 89% 48%;
 
     --radius: 0.75rem;
 
-    /* Sidebar */
+    /* Sidebar Light */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 240 3.8% 46.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 240 5.9% 91%;
-    --sidebar-ring: 240 5.9% 10%;
+    --sidebar-foreground: 215 16% 47%;
+    --sidebar-primary: 199 89% 44%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 199 89% 96%;
+    --sidebar-accent-foreground: 199 89% 30%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 199 89% 48%;
   }
 
   .dark {
-    /* ── Dark Minimalist Theme ── */
-    --background: 240 10% 3.9%;     /* Dark zinc #09090b */
-    --foreground: 0 0% 98%;         /* White #fafafa */
+    /* ── Dark Midnight Theme (MJS Arcade Zone Night) ── */
+    --background: 224 71% 4%;           /* Deep midnight obsidian #070b14 */
+    --foreground: 210 40% 98%;          /* Crisp white #f8fafc */
 
-    --card: 240 3.7% 12%;           /* #18181b */
-    --card-foreground: 0 0% 98%;
+    --card: 222 47% 9%;                 /* Midnight card slate #0d1322 */
+    --card-foreground: 210 40% 98%;
 
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 222 47% 9%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
+    --primary: 199 89% 52%;             /* Electric Neon Cyan #38bdf8 */
+    --primary-foreground: 224 71% 4%;
 
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 222 47% 14%;           /* #162035 */
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
+    --muted: 222 47% 14%;
+    --muted-foreground: 215 20% 65%;    /* Cool slate #94a3b8 */
 
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 280 84% 60%;              /* Neon Magenta/Fuchsia */
+    --accent-foreground: 210 40% 98%;
 
-    --border: 240 3.7% 18%;         /* Dark border #27272a */
-    --input: 240 3.7% 18%;
-    --ring: 240 4.9% 83.9%;
+    --destructive: 0 62.8% 50.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --success: 189 94% 48%;             /* MJS Cyan #06b6d4 */
+    --success-foreground: 224 71% 4%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 9%;
+
+    --border: 222 35% 18%;              /* Deep slate border #1e293b */
+    --input: 222 35% 18%;
+    --ring: 199 89% 52%;
 
     /* Sidebar Dark */
-    --sidebar-background: 240 10% 3.9%;
-    --sidebar-foreground: 240 5% 64.9%;
-    --sidebar-primary: 0 0% 98%;
-    --sidebar-primary-foreground: 240 5.9% 10%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 240 3.7% 18%;
-    --sidebar-ring: 240 4.9% 83.9%;
+    --sidebar-background: 224 71% 5%;   /* #090d16 */
+    --sidebar-foreground: 215 20% 65%;
+    --sidebar-primary: 199 89% 52%;
+    --sidebar-primary-foreground: 224 71% 4%;
+    --sidebar-accent: 222 47% 14%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 222 35% 16%;
+    --sidebar-ring: 199 89% 52%;
   }
 }
 
@@ -99,15 +108,15 @@
 
   html {
     @apply scroll-smooth transition-colors duration-300;
-    background-color: #ffffff;
+    background-color: #f8fafc;
   }
 
   html.dark {
-    background-color: #09090b;
+    background-color: #070b14;
   }
 
   body {
-    @apply bg-white dark:bg-zinc-950 text-foreground dark:text-zinc-100 antialiased transition-colors duration-300;
+    @apply bg-slate-50 dark:bg-[#070b14] text-foreground dark:text-slate-100 antialiased transition-colors duration-300;
     font-family: 'Inter', system-ui, sans-serif;
     margin: 0;
     min-height: 100vh;
@@ -122,46 +131,75 @@
 
   /* Custom Light/Dark Scrollbar */
   ::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
+    width: 6px;
+    height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #ffffff;
+    background: #f8fafc;
   }
   .dark ::-webkit-scrollbar-track {
-    background: #09090b;
+    background: #070b14;
   }
   ::-webkit-scrollbar-thumb {
-    background: #e4e4e7;
+    background: #cbd5e1;
     border-radius: 4px;
   }
   .dark ::-webkit-scrollbar-thumb {
-    background: #27272a;
+    background: #1e293b;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #a1a1aa;
+    background: #94a3b8;
   }
   .dark ::-webkit-scrollbar-thumb:hover {
-    background: #3f3f46;
+    background: #334155;
   }
 
   #root {
     min-height: 100vh;
     display: flex;
-    background-color: #ffffff;
+    background-color: #f8fafc;
   }
   .dark #root {
-    background-color: #09090b;
+    background-color: #070b14;
   }
 }
 
 @layer utilities {
   .subtle-card {
-    background-color: #f8f8f9;
-    border: 1px solid #e4e4e7;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
   }
   .dark .subtle-card {
-    background-color: #18181b;
-    border: 1px solid #27272a;
+    background-color: #0d1322;
+    border: 1px solid #1e293b;
+  }
+
+  .mjs-glow-cyan {
+    box-shadow: 0 0 20px -3px rgba(6, 182, 212, 0.45);
+  }
+  .mjs-glow-magenta {
+    box-shadow: 0 0 20px -3px rgba(236, 72, 153, 0.45);
+  }
+
+  /* ─── Electron Window Dragging ──────────────────────────── */
+  .app-drag-region {
+    -webkit-app-region: drag;
+    user-select: none;
+  }
+
+  .app-no-drag {
+    -webkit-app-region: no-drag;
+  }
+
+  /* Ensure interactive controls inside drag regions remain clickable */
+  .app-drag-region button,
+  .app-drag-region input,
+  .app-drag-region textarea,
+  .app-drag-region select,
+  .app-drag-region a,
+  .app-drag-region [role="button"],
+  .app-drag-region [role="dialog"],
+  .app-drag-region .app-no-drag {
+    -webkit-app-region: no-drag;
   }
 }

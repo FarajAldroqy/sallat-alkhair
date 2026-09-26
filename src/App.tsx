@@ -17,10 +17,10 @@ import type { Stats, DateFilter, Transaction } from '@/types'
 import { filterTransactionsByDate } from '@/lib/utils'
 import { initAutoBackupListener } from '@/lib/backupManager'
 import { initMockElectronAPI } from '@/lib/mockApi'
-import {
-  BarChart2, Users, Settings, Database, FileText, Sparkles,
+import { BarChart2, Users, Settings, Database, FileText, Sparkles,
   HelpCircle, Search, LayoutDashboard,
 } from 'lucide-react'
+import { AnalyticsDashboard } from '@/components/dashboard/AnalyticsDashboard'
 
 // Initialize fallback mock API if running in browser mode outside Electron
 initMockElectronAPI()
@@ -365,7 +365,7 @@ export default function App() {
         )
 
       case 'analytics':
-        return <PlaceholderSection icon={BarChart2} title="Analytics" />
+        return <AnalyticsDashboard dateFilter={dateFilter} />
       case 'team':
         return <PlaceholderSection icon={Users} title="Team" />
       case 'datalibrary':

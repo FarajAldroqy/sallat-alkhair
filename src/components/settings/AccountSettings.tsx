@@ -8,6 +8,7 @@ import type { UserAccount } from '@/types'
 import { usePermission } from '@/hooks/usePermission'
 import { logUserAction } from '@/lib/auditLogger'
 import { createBackup } from '@/lib/backupManager'
+import { hashPassword } from '@/lib/cryptoUtils'
 
 interface AccountSettingsProps {
   onLogout: () => void
@@ -57,7 +58,8 @@ export function AccountSettings({ onLogout }: AccountSettingsProps) {
   // Section A State: Edit Profile
   const [usernameInput, setUsernameInput] = useState(currentUser.username)
   const [displayNameInput, setDisplayNameInput] = useState(currentUser.displayName || '')
-  const [passwordInput, setPasswordInput] = useState(currentUser.password || 'admin')
+  // Don't pre-fill password (it's a hash now) — user must enter new one explicitly
+  const [passwordInput, setPasswordInput] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [profileSuccessMsg, setProfileSuccessMsg] = useState('')
 
@@ -80,9 +82,10 @@ export function AccountSettings({ onLogout }: AccountSettingsProps) {
     if (currentUser) {
       setUsernameInput(currentUser.username)
       setDisplayNameInput(currentUser.displayName || '')
-      setPasswordInput(currentUser.password || 'admin')
+      // Keep password field empty — user types new password to change it
+      setPasswordInput('')
     }
-  }, [currentUser])
+  }, [currentUser.id])
 
   // Save users array to localStorage
   const saveUsersToStorage = (updatedUsers: UserAccount[]) => {
@@ -91,20 +94,28 @@ export function AccountSettings({ onLogout }: AccountSettingsProps) {
   }
 
   // --- SECTION A: Save Profile Changes ---
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     setProfileSuccessMsg('')
 
     if (!usernameInput.trim() || !passwordInput.trim()) return
 
     const trimmedDisplay = displayNameInput.trim()
+    // Hash the new password before saving
+    let hashedPw = passwordInput.trim()
+    try {
+      hashedPw = await hashPassword(passwordInput.trim())
+    } catch (e) {
+      console.error('Password hashing failed, saving plain text as fallback:', e)
+    }
+
     const updatedUsers = users.map((u) => {
       if (u.id === currentUser.id) {
         return {
           ...u,
           username: usernameInput.trim(),
           displayName: trimmedDisplay,
-          password: passwordInput.trim(),
+          password: hashedPw,
         }
       }
       return u
@@ -144,7 +155,7 @@ export function AccountSettings({ onLogout }: AccountSettingsProps) {
   }
 
   // --- SECTION C: Add & Delete Accounts ---
-  const handleCreateUser = (e: React.FormEvent) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setAddUserError('')
 
@@ -163,11 +174,19 @@ export function AccountSettings({ onLogout }: AccountSettingsProps) {
       return
     }
 
+    // Hash new user's password before saving
+    let hashedNewPw = newPassword.trim()
+    try {
+      hashedNewPw = await hashPassword(newPassword.trim())
+    } catch (e) {
+      console.error('Password hashing failed for new user:', e)
+    }
+
     const newUser: UserAccount = {
       id: Date.now().toString(),
       username: newUsername.trim(),
       displayName: newDisplayName.trim(),
-      password: newPassword.trim(),
+      password: hashedNewPw,
       permissions: newPermissions,
       recoveryKeys: ['KEY-201', 'KEY-202', 'KEY-203', 'KEY-204', 'KEY-205'],
     }

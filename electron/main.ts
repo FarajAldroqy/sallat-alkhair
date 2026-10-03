@@ -1,6 +1,7 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, clipboard } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
+import { exec } from 'node:child_process'
 import path from 'node:path'
 import fs from 'node:fs'
 
@@ -63,10 +64,12 @@ function initDatabase() {
     }
   }
 
-  db = new Database(dbPath)
+  db = new Database(dbPath, { timeout: 10000 })
 
-  // Enable WAL mode for better performance
+  // Enable WAL mode & busy_timeout for maximum concurrency and zero locking
   try { db.pragma('journal_mode = WAL') } catch {}
+  try { db.pragma('synchronous = NORMAL') } catch {}
+  try { db.pragma('busy_timeout = 10000') } catch {}
   try { db.pragma('foreign_keys = ON') } catch {}
 
   // Create transactions table with all schema columns
@@ -121,6 +124,9 @@ function initDatabase() {
     if (!colNames.has('person_names')) {
       try { db.exec(`ALTER TABLE transactions ADD COLUMN person_names TEXT NOT NULL DEFAULT ''`) } catch {}
     }
+    if (!colNames.has('invoice_items')) {
+      try { db.exec(`ALTER TABLE transactions ADD COLUMN invoice_items TEXT NOT NULL DEFAULT ''`) } catch {}
+    }
     if (!colNames.has('is_pinned')) {
       try { db.exec(`ALTER TABLE transactions ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0`) } catch {}
     }
@@ -171,8 +177,8 @@ function registerIpcHandlers() {
       db.exec('DELETE FROM transactions')
       db.exec('DELETE FROM transaction_notes')
       const stmt = db.prepare(`
-        INSERT INTO transactions (id, client_name, type, subtype, person_name, person_names, amount_cents, payment_method, status, notes, is_pinned, is_archived, is_deleted, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO transactions (id, client_name, type, subtype, person_name, person_names, invoice_items, amount_cents, payment_method, status, notes, is_pinned, is_archived, is_deleted, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       const noteStmt = db.prepare(`
         INSERT OR REPLACE INTO transaction_notes (transaction_id, notes)
@@ -183,6 +189,7 @@ function registerIpcHandlers() {
         for (const t of items) {
           const notesVal = t.notes || ''
           const personNamesStr = Array.isArray(t.person_names) ? JSON.stringify(t.person_names) : (t.person_names || '')
+          const invoiceItemsStr = t.invoice_items ? (typeof t.invoice_items === 'string' ? t.invoice_items : JSON.stringify(t.invoice_items)) : ''
           stmt.run(
             t.id,
             t.client_name,
@@ -190,6 +197,7 @@ function registerIpcHandlers() {
             t.subtype || 'REGULAR',
             t.person_name || '',
             personNamesStr,
+            invoiceItemsStr,
             t.amount_cents,
             t.payment_method || 'نقداً',
             t.status || 'COMPLETED',
@@ -255,8 +263,8 @@ function registerIpcHandlers() {
 
       if (search) {
         const sanitized = search.replace(/[%_]/g, '\\$&')
-        whereClause += " AND client_name LIKE ? ESCAPE '\\'"
-        args.push(`%${sanitized}%`)
+        whereClause += " AND (client_name LIKE ? ESCAPE '\\' OR person_name LIKE ? ESCAPE '\\' OR notes LIKE ? ESCAPE '\\')"
+        args.push(`%${sanitized}%`, `%${sanitized}%`, `%${sanitized}%`)
       }
       if (type !== 'ALL') {
         whereClause += ' AND type = ?'
@@ -280,7 +288,15 @@ function registerIpcHandlers() {
             person_names = [t.person_names]
           }
         }
-        return { ...t, person_names }
+        let invoice_items: any[] | undefined = undefined
+        if (t.invoice_items) {
+          try {
+            invoice_items = JSON.parse(t.invoice_items)
+          } catch {
+            invoice_items = undefined
+          }
+        }
+        return { ...t, person_names, invoice_items }
       })
 
       return { data, total, page, pageSize }
@@ -297,6 +313,7 @@ function registerIpcHandlers() {
     subtype?: string
     person_name?: string
     person_names?: string[]
+    invoice_items?: any[]
     amount_cents: number
     payment_method?: string
     notes?: string
@@ -309,6 +326,7 @@ function registerIpcHandlers() {
       const subtype = payload.subtype || 'REGULAR'
       const personName = payload.person_name || ''
       const personNamesStr = payload.person_names ? JSON.stringify(payload.person_names) : ''
+      const invoiceItemsStr = payload.invoice_items ? JSON.stringify(payload.invoice_items) : ''
 
       // Self-healing migration check for all columns
       try {
@@ -329,6 +347,9 @@ function registerIpcHandlers() {
         if (!colNames.has('person_names')) {
           try { db.exec(`ALTER TABLE transactions ADD COLUMN person_names TEXT NOT NULL DEFAULT ''`) } catch {}
         }
+        if (!colNames.has('invoice_items')) {
+          try { db.exec(`ALTER TABLE transactions ADD COLUMN invoice_items TEXT NOT NULL DEFAULT ''`) } catch {}
+        }
         if (!colNames.has('is_pinned')) {
           try { db.exec(`ALTER TABLE transactions ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0`) } catch {}
         }
@@ -343,8 +364,8 @@ function registerIpcHandlers() {
       let result: any
       try {
         const stmt = db.prepare(`
-          INSERT INTO transactions (client_name, type, subtype, person_name, person_names, amount_cents, payment_method, status, notes, is_pinned, is_archived, is_deleted)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)
+          INSERT INTO transactions (client_name, type, subtype, person_name, person_names, invoice_items, amount_cents, payment_method, status, notes, is_pinned, is_archived, is_deleted)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)
         `)
         result = stmt.run(
           payload.client_name,
@@ -352,6 +373,7 @@ function registerIpcHandlers() {
           subtype,
           personName,
           personNamesStr,
+          invoiceItemsStr,
           payload.amount_cents,
           paymentMethod,
           status,
@@ -378,11 +400,27 @@ function registerIpcHandlers() {
       }
 
       const createdRow: any = db.prepare('SELECT * FROM transactions WHERE id = ?').get(result.lastInsertRowid)
-      if (createdRow && createdRow.person_names) {
-        try {
-          createdRow.person_names = JSON.parse(createdRow.person_names)
-        } catch {
-          createdRow.person_names = [createdRow.person_names]
+      if (createdRow) {
+        if (createdRow.person_names) {
+          try {
+            const parsed = JSON.parse(createdRow.person_names)
+            createdRow.person_names = Array.isArray(parsed) ? parsed : [String(parsed)]
+          } catch {
+            createdRow.person_names = [createdRow.person_names]
+          }
+        } else {
+          createdRow.person_names = undefined
+        }
+
+        if (createdRow.invoice_items) {
+          try {
+            const parsed = JSON.parse(createdRow.invoice_items)
+            createdRow.invoice_items = Array.isArray(parsed) ? parsed : undefined
+          } catch {
+            createdRow.invoice_items = undefined
+          }
+        } else {
+          createdRow.invoice_items = undefined
         }
       }
       return createdRow
@@ -412,6 +450,113 @@ function registerIpcHandlers() {
       return { success: true, id: payload.id, notes: trimmedNotes }
     } catch (err: any) {
       console.error('Failed to update transaction notes:', err)
+      return { success: false, error: err.message }
+    }
+  })
+
+  // POST /update-transaction – full edit of any transaction fields
+  ipcMain.handle('db:update-transaction', (_event, payload: {
+    id: number
+    client_name?: string
+    type?: string
+    subtype?: string
+    person_name?: string
+    person_names?: string[]
+    invoice_items?: any[]
+    amount_cents?: number
+    payment_method?: string
+    notes?: string
+    status?: string
+    created_at?: string
+  }) => {
+    try {
+      const existing: any = db.prepare('SELECT * FROM transactions WHERE id = ?').get(payload.id)
+      if (!existing) {
+        return { success: false, error: 'المعاملة غير موجودة' }
+      }
+
+      const clientName = payload.client_name !== undefined ? payload.client_name.trim() : existing.client_name
+      const type = payload.type !== undefined ? payload.type : existing.type
+      const subtype = payload.subtype !== undefined ? payload.subtype : existing.subtype
+      const personName = payload.person_name !== undefined ? payload.person_name.trim() : existing.person_name
+      const personNamesStr = payload.person_names !== undefined
+        ? (Array.isArray(payload.person_names) ? JSON.stringify(payload.person_names) : payload.person_names)
+        : existing.person_names
+      const invoiceItemsStr = payload.invoice_items !== undefined
+        ? (Array.isArray(payload.invoice_items) ? JSON.stringify(payload.invoice_items) : payload.invoice_items)
+        : (existing.invoice_items || '')
+      const amountCents = payload.amount_cents !== undefined ? payload.amount_cents : existing.amount_cents
+      const paymentMethod = payload.payment_method !== undefined ? payload.payment_method : existing.payment_method
+      const notes = payload.notes !== undefined ? payload.notes.trim() : existing.notes
+      const status = payload.status !== undefined ? payload.status : existing.status
+      const createdAt = payload.created_at !== undefined ? payload.created_at : existing.created_at
+
+      db.prepare(`
+        UPDATE transactions
+        SET client_name = ?,
+            type = ?,
+            subtype = ?,
+            person_name = ?,
+            person_names = ?,
+            invoice_items = ?,
+            amount_cents = ?,
+            payment_method = ?,
+            notes = ?,
+            status = ?,
+            created_at = ?
+        WHERE id = ?
+      `).run(
+        clientName,
+        type,
+        subtype,
+        personName,
+        personNamesStr,
+        invoiceItemsStr,
+        amountCents,
+        paymentMethod,
+        notes,
+        status,
+        createdAt,
+        payload.id
+      )
+
+      // Also update or insert in transaction_notes
+      try {
+        db.prepare(`
+          INSERT INTO transaction_notes (transaction_id, notes, updated_at)
+          VALUES (?, ?, datetime('now'))
+          ON CONFLICT(transaction_id) DO UPDATE SET notes = excluded.notes, updated_at = datetime('now')
+        `).run(payload.id, notes)
+      } catch {}
+
+      const updatedRow: any = db.prepare('SELECT * FROM transactions WHERE id = ?').get(payload.id)
+      if (updatedRow) {
+        if (updatedRow.person_names) {
+          try {
+            const parsed = JSON.parse(updatedRow.person_names)
+            updatedRow.person_names = Array.isArray(parsed) ? parsed : [String(parsed)]
+          } catch {
+            updatedRow.person_names = [updatedRow.person_names]
+          }
+        } else {
+          updatedRow.person_names = undefined
+        }
+
+        if (updatedRow.invoice_items) {
+          try {
+            const parsed = JSON.parse(updatedRow.invoice_items)
+            updatedRow.invoice_items = Array.isArray(parsed) ? parsed : undefined
+          } catch {
+            updatedRow.invoice_items = undefined
+          }
+        } else {
+          updatedRow.invoice_items = undefined
+        }
+      }
+
+      return { success: true, transaction: updatedRow }
+    } catch (err: any) {
+      console.error('Failed to update transaction:', err)
       return { success: false, error: err.message }
     }
   })
@@ -488,11 +633,15 @@ function registerIpcHandlers() {
     try {
       if (!Array.isArray(ids) || ids.length === 0) return { success: true, count: 0 }
       const placeholders = ids.map(() => '?').join(',')
-      if (permanent) {
-        db.prepare(`DELETE FROM transactions WHERE id IN (${placeholders})`).run(...ids)
-      } else {
-        db.prepare(`UPDATE transactions SET is_deleted = 1 WHERE id IN (${placeholders})`).run(...ids)
-      }
+      const runBatch = db.transaction(() => {
+        if (permanent) {
+          db.prepare(`DELETE FROM transactions WHERE id IN (${placeholders})`).run(...ids)
+        } else {
+          db.prepare(`UPDATE transactions SET is_deleted = 1 WHERE id IN (${placeholders})`).run(...ids)
+        }
+      })
+      runBatch()
+      try { db.pragma('wal_checkpoint(PASSIVE)') } catch {}
       return { success: true, count: ids.length }
     } catch (err: any) {
       console.error('Failed batch delete transactions:', err)
@@ -504,7 +653,11 @@ function registerIpcHandlers() {
     try {
       if (!Array.isArray(ids) || ids.length === 0) return { success: true, count: 0 }
       const placeholders = ids.map(() => '?').join(',')
-      db.prepare(`UPDATE transactions SET is_archived = 1 WHERE id IN (${placeholders}) AND is_deleted = 0`).run(...ids)
+      const runBatch = db.transaction(() => {
+        db.prepare(`UPDATE transactions SET is_archived = 1 WHERE id IN (${placeholders}) AND is_deleted = 0`).run(...ids)
+      })
+      runBatch()
+      try { db.pragma('wal_checkpoint(PASSIVE)') } catch {}
       return { success: true, count: ids.length }
     } catch (err: any) {
       console.error('Failed batch archive transactions:', err)
@@ -516,7 +669,11 @@ function registerIpcHandlers() {
     try {
       if (!Array.isArray(ids) || ids.length === 0) return { success: true, count: 0 }
       const placeholders = ids.map(() => '?').join(',')
-      db.prepare(`UPDATE transactions SET is_deleted = 0, is_archived = 0 WHERE id IN (${placeholders})`).run(...ids)
+      const runBatch = db.transaction(() => {
+        db.prepare(`UPDATE transactions SET is_deleted = 0, is_archived = 0 WHERE id IN (${placeholders})`).run(...ids)
+      })
+      runBatch()
+      try { db.pragma('wal_checkpoint(PASSIVE)') } catch {}
       return { success: true, count: ids.length }
     } catch (err: any) {
       console.error('Failed batch restore transactions:', err)
@@ -528,11 +685,15 @@ function registerIpcHandlers() {
     try {
       if (!Array.isArray(clientNames) || clientNames.length === 0) return { success: true, count: 0 }
       const placeholders = clientNames.map(() => '?').join(',')
-      if (permanent) {
-        db.prepare(`DELETE FROM transactions WHERE client_name IN (${placeholders})`).run(...clientNames)
-      } else {
-        db.prepare(`UPDATE transactions SET is_deleted = 1 WHERE client_name IN (${placeholders})`).run(...clientNames)
-      }
+      const runBatch = db.transaction(() => {
+        if (permanent) {
+          db.prepare(`DELETE FROM transactions WHERE client_name IN (${placeholders})`).run(...clientNames)
+        } else {
+          db.prepare(`UPDATE transactions SET is_deleted = 1 WHERE client_name IN (${placeholders})`).run(...clientNames)
+        }
+      })
+      runBatch()
+      try { db.pragma('wal_checkpoint(PASSIVE)') } catch {}
       return { success: true, count: clientNames.length }
     } catch (err: any) {
       console.error('Failed batch delete entities:', err)
@@ -544,7 +705,11 @@ function registerIpcHandlers() {
     try {
       if (!Array.isArray(clientNames) || clientNames.length === 0) return { success: true, count: 0 }
       const placeholders = clientNames.map(() => '?').join(',')
-      db.prepare(`UPDATE transactions SET is_deleted = 0, is_archived = 0 WHERE client_name IN (${placeholders})`).run(...clientNames)
+      const runBatch = db.transaction(() => {
+        db.prepare(`UPDATE transactions SET is_deleted = 0, is_archived = 0 WHERE client_name IN (${placeholders})`).run(...clientNames)
+      })
+      runBatch()
+      try { db.pragma('wal_checkpoint(PASSIVE)') } catch {}
       return { success: true, count: clientNames.length }
     } catch (err: any) {
       console.error('Failed batch restore entities:', err)
@@ -590,6 +755,32 @@ function registerIpcHandlers() {
          FROM transactions WHERE type='WITHDRAWAL' AND is_deleted=0`
       ).get() as { total: number; cnt: number }
 
+      // Cash breakdown
+      const cashDeposits = db.prepare(
+        `SELECT COALESCE(SUM(amount_cents),0) as total, COUNT(*) as cnt
+         FROM transactions WHERE type='DEPOSIT' AND is_deleted=0
+         AND (payment_method IN ('نقداً', 'CASH') OR payment_method IS NULL OR payment_method = '')`
+      ).get() as { total: number; cnt: number }
+
+      const cashWithdrawals = db.prepare(
+        `SELECT COALESCE(SUM(amount_cents),0) as total, COUNT(*) as cnt
+         FROM transactions WHERE type='WITHDRAWAL' AND is_deleted=0
+         AND (payment_method IN ('نقداً', 'CASH') OR payment_method IS NULL OR payment_method = '')`
+      ).get() as { total: number; cnt: number }
+
+      // Bank breakdown
+      const bankDeposits = db.prepare(
+        `SELECT COALESCE(SUM(amount_cents),0) as total, COUNT(*) as cnt
+         FROM transactions WHERE type='DEPOSIT' AND is_deleted=0
+         AND payment_method IN ('بنك', 'تحويل مصرفي', 'BANK_TRANSFER', 'BANK')`
+      ).get() as { total: number; cnt: number }
+
+      const bankWithdrawals = db.prepare(
+        `SELECT COALESCE(SUM(amount_cents),0) as total, COUNT(*) as cnt
+         FROM transactions WHERE type='WITHDRAWAL' AND is_deleted=0
+         AND payment_method IN ('بنك', 'تحويل مصرفي', 'BANK_TRANSFER', 'BANK')`
+      ).get() as { total: number; cnt: number }
+
       const activeAccounts = (db.prepare(
         `SELECT COUNT(DISTINCT client_name) as cnt FROM transactions WHERE is_deleted=0`
       ).get() as { cnt: number }).cnt
@@ -601,6 +792,20 @@ function registerIpcHandlers() {
         active_accounts: activeAccounts,
         deposit_count: deposits.cnt,
         withdrawal_count: withdrawals.cnt,
+
+        // Cash breakdown
+        cash_balance_cents: cashDeposits.total - cashWithdrawals.total,
+        cash_deposits_cents: cashDeposits.total,
+        cash_withdrawals_cents: cashWithdrawals.total,
+        cash_deposit_count: cashDeposits.cnt,
+        cash_withdrawal_count: cashWithdrawals.cnt,
+
+        // Bank breakdown
+        bank_balance_cents: bankDeposits.total - bankWithdrawals.total,
+        bank_deposits_cents: bankDeposits.total,
+        bank_withdrawals_cents: bankWithdrawals.total,
+        bank_deposit_count: bankDeposits.cnt,
+        bank_withdrawal_count: bankWithdrawals.cnt,
       }
     } catch (err: any) {
       console.error('Failed to get stats:', err)
@@ -611,6 +816,16 @@ function registerIpcHandlers() {
         active_accounts: 0,
         deposit_count: 0,
         withdrawal_count: 0,
+        cash_balance_cents: 0,
+        cash_deposits_cents: 0,
+        cash_withdrawals_cents: 0,
+        cash_deposit_count: 0,
+        cash_withdrawal_count: 0,
+        bank_balance_cents: 0,
+        bank_deposits_cents: 0,
+        bank_withdrawals_cents: 0,
+        bank_deposit_count: 0,
+        bank_withdrawal_count: 0,
       }
     }
   })
@@ -670,6 +885,198 @@ function registerIpcHandlers() {
     } catch (err: any) {
       console.error('Failed to get chart data:', err)
       return []
+    }
+  })
+
+  // ─── PDF Export & External Shell Handlers (WhatsApp, Finder, etc.) ────────
+  function copyPdfFileToClipboard(filePath: string) {
+    if (process.platform === 'darwin') {
+      try {
+        const plist = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<array>
+  <string>${filePath}</string>
+</array>
+</plist>`
+        clipboard.writeBuffer('NSFilenamesPboardType', Buffer.from(plist, 'utf8'))
+      } catch (e) {
+        console.error('clipboard.writeBuffer error:', e)
+      }
+
+      // Native macOS Finder alias / Swift pasteboard registration
+      try {
+        const escaped = filePath.replace(/"/g, '\\"')
+        exec(`osascript -e 'tell application "Finder" to set the clipboard to (POSIX file "${escaped}" as alias)'`, () => {})
+      } catch {}
+
+      try {
+        const escaped = filePath.replace(/"/g, '\\"')
+        exec(`swift -e 'import AppKit; let pb = NSPasteboard.general; pb.clearContents(); pb.writeObjects([NSURL(fileURLWithPath: "${escaped}")])'`, () => {})
+      } catch {}
+    } else if (process.platform === 'win32') {
+      try {
+        clipboard.writeBuffer('FileNameW', Buffer.from(filePath + '\0', 'ucs2'))
+      } catch (e) {
+        console.error('Windows clipboard FileNameW error:', e)
+      }
+
+      // Windows 10 & 11 native PowerShell FileDropList clipboard
+      try {
+        const escaped = filePath.replace(/'/g, "''")
+        exec(
+          `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "Set-Clipboard -Path '${escaped}'"`,
+          { windowsHide: true },
+          () => {}
+        )
+      } catch (e) {
+        console.error('Windows Set-Clipboard error:', e)
+      }
+    }
+  }
+
+  ipcMain.handle('app:save-pdf', async (_event, params?: { filename?: string; landscape?: boolean; showInFolder?: boolean }) => {
+    try {
+      const targetWin = BrowserWindow.fromWebContents(_event.sender) || win
+      if (!targetWin || targetWin.isDestroyed()) {
+        return { success: false, error: 'النافذة الرئيسية غير متوفرة' }
+      }
+
+      const pdfBuffer = await targetWin.webContents.printToPDF({
+        pageSize: 'A4',
+        landscape: Boolean(params?.landscape),
+        printBackground: true,
+        preferCSSPageSize: true,
+      })
+
+      const downloadsPath = app.getPath('downloads')
+      const rawName = params?.filename || `MJS_إيصال_${Date.now()}`
+      const safeName = rawName.replace(/[/\\?%*:|"<>]/g, '_').replace(/\.pdf$/i, '') + '.pdf'
+      const targetPath = path.join(downloadsPath, safeName)
+
+      fs.writeFileSync(targetPath, pdfBuffer)
+
+      // Automatically copy the PDF file to clipboard so user can paste it immediately
+      copyPdfFileToClipboard(targetPath)
+
+      // Only show in folder if explicitly asked (not automatically popping up Finder/Explorer)
+      if (params?.showInFolder) {
+        try {
+          shell.showItemInFolder(targetPath)
+        } catch (e) {
+          console.error('showItemInFolder error:', e)
+        }
+      }
+
+      return {
+        success: true,
+        filePath: targetPath,
+        filename: safeName,
+      }
+    } catch (err: any) {
+      console.error('Failed to export PDF:', err)
+      return { success: false, error: err?.message || 'فشل توليد وحفظ ملف الـ PDF' }
+    }
+  })
+
+  ipcMain.handle('app:send-whatsapp', async (_event, params: { phone?: string; message?: string; filePath?: string }) => {
+    try {
+      const { phone, message, filePath } = params
+
+      // Ensure file is in clipboard
+      if (filePath && fs.existsSync(filePath)) {
+        copyPdfFileToClipboard(filePath)
+      }
+
+      const cleanPhone = phone ? phone.replace(/\D/g, '') : ''
+      const encodedMsg = message ? encodeURIComponent(message) : ''
+
+      let whatsappUrl = ''
+      if (cleanPhone) {
+        whatsappUrl = `whatsapp://send?phone=${cleanPhone}&text=${encodedMsg}`
+      } else {
+        whatsappUrl = `whatsapp://send?text=${encodedMsg}`
+      }
+
+      try {
+        await shell.openExternal(whatsappUrl)
+      } catch {
+        const fallbackUrl = cleanPhone
+          ? `https://wa.me/${cleanPhone}?text=${encodedMsg}`
+          : `https://wa.me/?text=${encodedMsg}`
+        await shell.openExternal(fallbackUrl)
+      }
+
+      // On macOS: attempt automatic paste into WhatsApp if accessibility allows
+      if (process.platform === 'darwin' && filePath) {
+        setTimeout(() => {
+          const pasteScript = `
+            try
+              tell application "WhatsApp" to activate
+              delay 0.8
+              tell application "System Events"
+                keystroke "v" using command down
+              end tell
+            end try
+          `
+          exec(`osascript -e '${pasteScript.replace(/'/g, "'\\''")}'`, () => {})
+        }, 1000)
+      } else if (process.platform === 'win32' && filePath) {
+        // On Windows: attempt automatic paste into WhatsApp Desktop using PowerShell and SendKeys
+        setTimeout(() => {
+          const psScript = `$wshell = New-Object -ComObject WScript.Shell; Start-Sleep -Milliseconds 1200; if ($wshell.AppActivate('WhatsApp')) { Start-Sleep -Milliseconds 500; $wshell.SendKeys('^v') }`
+          exec(
+            `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -Command "${psScript}"`,
+            { windowsHide: true },
+            () => {}
+          )
+        }, 800)
+      }
+
+      return { success: true }
+    } catch (err: any) {
+      console.error('Failed to send to WhatsApp:', err)
+      return { success: false, error: err?.message }
+    }
+  })
+
+  ipcMain.handle('app:copy-file-to-clipboard', async (_event, filePath: string) => {
+    try {
+      if (filePath && fs.existsSync(filePath)) {
+        copyPdfFileToClipboard(filePath)
+        return { success: true }
+      }
+      return { success: false, error: 'الملف غير موجود' }
+    } catch (err: any) {
+      return { success: false, error: err?.message }
+    }
+  })
+
+  ipcMain.handle('app:open-external', async (_event, url: string) => {
+    try {
+      await shell.openExternal(url)
+      return { success: true }
+    } catch (err: any) {
+      console.error('Failed to open external url:', err)
+      return { success: false, error: err?.message }
+    }
+  })
+
+  ipcMain.handle('app:show-item-in-folder', async (_event, filePath: string) => {
+    try {
+      shell.showItemInFolder(filePath)
+      return { success: true }
+    } catch (err: any) {
+      return { success: false, error: err?.message }
+    }
+  })
+
+  ipcMain.handle('app:open-path', async (_event, filePath: string) => {
+    try {
+      const err = await shell.openPath(filePath)
+      return { success: !err, error: err || undefined }
+    } catch (err: any) {
+      return { success: false, error: err?.message }
     }
   })
 }

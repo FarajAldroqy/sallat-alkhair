@@ -109,7 +109,7 @@ export function initMockElectronAPI() {
       }
 
       if (search) {
-        all = all.filter((t) => t.client_name && t.client_name.toLowerCase().includes(search))
+        all = all.filter((t) => (t.client_name && t.client_name.toLowerCase().includes(search)) || (t.person_name && t.person_name.toLowerCase().includes(search)) || (t.notes && t.notes.toLowerCase().includes(search)))
       }
 
       if (type !== 'ALL') {
@@ -143,6 +143,7 @@ export function initMockElectronAPI() {
         subtype: payload.subtype || 'REGULAR',
         person_name: payload.person_name?.trim(),
         person_names: payload.person_names?.map((n) => n.trim()).filter(Boolean),
+        invoice_items: payload.invoice_items,
         amount_cents: Number(payload.amount_cents) || 0,
         payment_method: payload.payment_method || 'نقداً',
         notes: (payload.notes || '').trim(),
@@ -160,6 +161,10 @@ export function initMockElectronAPI() {
       const all = getStoredTransactions().filter((t) => (t.is_deleted ?? 0) === 0)
       let dep = 0
       let withd = 0
+      let cashDep = 0
+      let cashWithd = 0
+      let bankDep = 0
+      let bankWithd = 0
       let depCnt = 0
       let withdCnt = 0
       let cashDepCnt = 0
@@ -170,18 +175,28 @@ export function initMockElectronAPI() {
 
       all.forEach((tx) => {
         if (tx.client_name) accounts.add(tx.client_name.trim())
-        const isCash = !tx.payment_method || tx.payment_method === 'نقداً'
+        const isCash = !tx.payment_method || tx.payment_method === 'نقداً' || tx.payment_method === 'CASH'
 
         if (tx.type === 'DEPOSIT') {
           dep += tx.amount_cents
           depCnt += 1
-          if (isCash) cashDepCnt += 1
-          else bankDepCnt += 1
+          if (isCash) {
+            cashDep += tx.amount_cents
+            cashDepCnt += 1
+          } else {
+            bankDep += tx.amount_cents
+            bankDepCnt += 1
+          }
         } else {
           withd += tx.amount_cents
           withdCnt += 1
-          if (isCash) cashWithdCnt += 1
-          else bankWithdCnt += 1
+          if (isCash) {
+            cashWithd += tx.amount_cents
+            cashWithdCnt += 1
+          } else {
+            bankWithd += tx.amount_cents
+            bankWithdCnt += 1
+          }
         }
       })
 
@@ -192,9 +207,15 @@ export function initMockElectronAPI() {
         active_accounts: accounts.size,
         deposit_count: depCnt,
         withdrawal_count: withdCnt,
+        cash_balance_cents: cashDep - cashWithd,
+        cash_deposits_cents: cashDep,
+        cash_withdrawals_cents: cashWithd,
         cash_deposit_count: cashDepCnt,
-        bank_deposit_count: bankDepCnt,
         cash_withdrawal_count: cashWithdCnt,
+        bank_balance_cents: bankDep - bankWithd,
+        bank_deposits_cents: bankDep,
+        bank_withdrawals_cents: bankWithd,
+        bank_deposit_count: bankDepCnt,
         bank_withdrawal_count: bankWithdCnt,
       }
     },
@@ -330,6 +351,20 @@ export function initMockElectronAPI() {
       return { success: true, id: p.id, notes: trimmedNotes }
     },
 
+    updateTransaction: async (p: any) => {
+      const all = getStoredTransactions()
+      const idx = all.findIndex((t) => t.id === p.id)
+      if (idx === -1) return { success: false, error: 'المعاملة غير موجودة' }
+      const updated = {
+        ...all[idx],
+        ...p,
+        notes: p.notes !== undefined ? (p.notes || '').trim() : all[idx].notes,
+      }
+      all[idx] = updated
+      saveStoredTransactions(all)
+      return { success: true, transaction: updated }
+    },
+
     deleteTransactionsBatch: async (ids: number[], permanent?: boolean) => {
       let all = getStoredTransactions()
       const set = new Set(ids)
@@ -376,6 +411,44 @@ export function initMockElectronAPI() {
       const updated = all.map((t) => (set.has(t.client_name.trim()) ? { ...t, is_deleted: 0, is_archived: 0 } : t))
       saveStoredTransactions(updated)
       return { success: true, count: clientNames.length }
+    },
+
+    savePDF: async (params?: { filename?: string; landscape?: boolean; showInFolder?: boolean }) => {
+      try {
+        window.print()
+        return {
+          success: true,
+          filePath: params?.filename || 'document.pdf',
+          filename: params?.filename || 'document.pdf',
+        }
+      } catch (e: any) {
+        return { success: false, error: e?.message }
+      }
+    },
+
+    sendWhatsApp: async (params: { phone?: string; message?: string; filePath?: string }) => {
+      const cleanPhone = params.phone ? params.phone.replace(/\D/g, '') : ''
+      const encodedMsg = params.message ? encodeURIComponent(params.message) : ''
+      const url = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodedMsg}` : `https://wa.me/?text=${encodedMsg}`
+      window.open(url, '_blank')
+      return { success: true }
+    },
+
+    copyFileToClipboard: async (_filePath: string) => {
+      return { success: true }
+    },
+
+    openExternal: async (url: string) => {
+      window.open(url, '_blank')
+      return { success: true }
+    },
+
+    showItemInFolder: async (_filePath: string) => {
+      return { success: true }
+    },
+
+    openPath: async (_filePath: string) => {
+      return { success: true }
     },
   }
 }

@@ -5,7 +5,7 @@
 // =====================================================================
 
 import type { Transaction } from '@/types'
-import { formatCurrency } from './utils'
+import { formatCurrency, getSafePersonNames } from './utils'
 
 /**
  * Trigger a file download in the browser.
@@ -67,10 +67,16 @@ export function exportTransactionsToCsv(transactions: Transaction[], filename?: 
     idx + 1,
     tx.client_name,
     tx.type === 'DEPOSIT' ? 'إيداع' : 'سحب',
-    tx.subtype === 'PERSON' ? 'شخصي' : 'عادي',
-    tx.person_name || (tx.person_names?.join(' / ') ?? ''),
+    tx.subtype === 'TREASURY_CLEARANCE' || tx.client_name === 'تفريغ من الخزينة'
+      ? 'تفريغ من الخزينة'
+      : tx.subtype === 'CUMULATIVE'
+      ? 'تجميعي'
+      : tx.subtype === 'PERSON'
+      ? (tx.type === 'DEPOSIT' ? 'شخصي' : 'تفصيلي')
+      : (tx.type === 'DEPOSIT' ? 'عادي' : 'جهات'),
+    tx.person_name || (getSafePersonNames(tx.person_names).join(' / ')),
     formatCurrency(tx.amount_cents),
-    tx.payment_method || 'نقداً',
+    tx.payment_method === 'تحويل مصرفي' || tx.payment_method === 'BANK_TRANSFER' ? 'بنك' : (tx.payment_method || 'نقداً'),
     tx.status === 'COMPLETED' ? 'مكتمل' : tx.status || 'مكتمل',
     tx.notes || '',
     new Intl.DateTimeFormat('ar-LY', {

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { formatCurrency, formatDate } from '@/lib/utils'
+import { formatCurrency, formatDate, getSafePersonNames, getSafeInvoiceItems } from '@/lib/utils'
 import type { Transaction } from '@/types'
 import logoImg from '@/assets/logo.png'
 
@@ -61,10 +61,18 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
 
   const isDeposit = transaction.type === 'DEPOSIT'
   const isPersonSubtype = transaction.subtype === 'PERSON'
+  const isTreasuryClearance = transaction.subtype === 'TREASURY_CLEARANCE' || transaction.client_name === 'تفريغ من الخزينة'
+  const safeInvoiceItems = getSafeInvoiceItems(transaction.invoice_items)
+  const safePersonNames = getSafePersonNames(transaction.person_names)
+  const isCumulativeSubtype = transaction.subtype === 'CUMULATIVE' || safeInvoiceItems.length > 0
 
   let receiptTitle = isDeposit ? 'إيصال قبض نقدي / المصرف' : 'إيصال صرف نقدي / المصرف'
-  if (isPersonSubtype) {
-    receiptTitle = isDeposit ? 'إيصال قبض (إيداع من شخص)' : 'إيصال صرف (سحب للأشخاص)'
+  if (isTreasuryClearance) {
+    receiptTitle = 'إيصال صرف (تفريغ من الخزينة)'
+  } else if (isCumulativeSubtype) {
+    receiptTitle = isDeposit ? 'إيصال قبض (إيداع تجميعي)' : 'إيصال صرف (سحب تجميعي)'
+  } else if (isPersonSubtype) {
+    receiptTitle = isDeposit ? 'إيصال قبض (إيداع من شخص)' : 'إيصال صرف'
   }
 
   const renderSingleReceiptCopy = (copyKey: string) => (
@@ -107,9 +115,33 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
           </div>
 
         {/* Data Fields Grid (Large Fonts + Compact Vertical Padding) */}
-        <div className="grid grid-cols-2 gap-2.5 my-2.5 p-3 rounded-xl border-2 border-zinc-300 bg-zinc-50/60 text-xs sm:text-sm">
+        <div className="grid grid-cols-2 gap-2 my-2 p-2.5 rounded-xl border-2 border-zinc-300 bg-zinc-50/60 text-xs sm:text-sm">
           {/* Row 1 */}
-          {isPersonSubtype ? (
+          {isTreasuryClearance ? (
+            <div className="space-y-0.5">
+              <span className="text-zinc-600 font-bold block text-xs">اسم الجهة / نوع الإجراء:</span>
+              <span className="font-black text-base sm:text-lg text-purple-950 block truncate">
+                تفريغ من الخزينة (الإدارة العليا)
+              </span>
+            </div>
+          ) : isCumulativeSubtype ? (
+            <>
+              <div className="space-y-0.5 col-span-2 sm:col-span-1">
+                <span className="text-zinc-600 font-bold block text-xs">
+                  {isDeposit ? 'المصدر / بيان الإيداع:' : 'عنوان الفاتورة:'}
+                </span>
+                <span className={`font-black text-base sm:text-lg block truncate ${isDeposit ? 'text-emerald-950' : 'text-rose-950'}`}>
+                  {transaction.client_name}
+                </span>
+              </div>
+              <div className="space-y-0.5 col-span-2 sm:col-span-1">
+                <span className="text-zinc-600 font-bold block text-xs">التاريخ والوقت:</span>
+                <span className="font-black text-xs sm:text-sm text-zinc-950 ar-num block dir-ltr text-right">
+                  {formatDate(transaction.created_at)}
+                </span>
+              </div>
+            </>
+          ) : isPersonSubtype ? (
             isDeposit ? (
               <>
                 <div className="space-y-0.5">
@@ -128,10 +160,10 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
             ) : (
               <>
                 <div className="space-y-0.5 col-span-2 sm:col-span-1">
-                  <span className="text-zinc-600 font-bold block text-xs">أسماء الأشخاص (المستلمون):</span>
+                  <span className="text-zinc-600 font-bold block text-xs">اسم العنصر:</span>
                   <span className="font-black text-base sm:text-lg text-rose-950 block truncate">
-                    {transaction.person_names && transaction.person_names.length > 0
-                      ? transaction.person_names.join(' ، ')
+                    {safePersonNames.length > 0
+                      ? safePersonNames.join(' ، ')
                       : (transaction.person_name || 'غير محدد')}
                   </span>
                 </div>
@@ -150,30 +182,74 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
             </div>
           )}
 
-          <div className="space-y-0.5">
-            <span className="text-zinc-600 font-bold block text-xs">التاريخ والوقت:</span>
-            <span className="font-black text-xs sm:text-sm text-zinc-950 ar-num block dir-ltr text-right">
-              {formatDate(transaction.created_at)}
-            </span>
-          </div>
+          {!isCumulativeSubtype && (
+            <div className="space-y-0.5">
+              <span className="text-zinc-600 font-bold block text-xs">التاريخ والوقت:</span>
+              <span className="font-black text-xs sm:text-sm text-zinc-950 ar-num block dir-ltr text-right">
+                {formatDate(transaction.created_at)}
+              </span>
+            </div>
+          )}
+
+          {/* Cumulative Items Breakdown Table */}
+          {isCumulativeSubtype && safeInvoiceItems.length > 0 && (
+            <div className="col-span-2 my-1 border border-zinc-300 rounded-lg overflow-hidden bg-white max-h-[38mm] overflow-y-auto">
+              <table className="w-full text-right text-xs">
+                <thead>
+                  <tr className="bg-zinc-100 text-zinc-850 border-b border-zinc-300 font-bold">
+                    <th className="py-0.5 px-2 text-right w-8">#</th>
+                    <th className="py-0.5 px-2 text-right">
+                      {isDeposit ? 'بيان بند الإيداع' : 'بيان عنصر الفاتورة'}
+                    </th>
+                    <th className="py-0.5 px-2 text-left">القيمة المقابلة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {safeInvoiceItems.map((item, idx) => (
+                    <tr key={idx} className="border-b border-zinc-200 last:border-0 hover:bg-zinc-50">
+                      <td className="py-0.5 px-2 text-zinc-500 font-mono text-[10px]">{idx + 1}</td>
+                      <td className="py-0.5 px-2 font-bold text-zinc-900 text-xs">{item.name}</td>
+                      <td className="py-0.5 px-2 text-left font-black font-mono text-zinc-950 text-xs">{formatCurrency(item.amount_cents)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Row 2: Transaction Type */}
           <div className="space-y-0.5 col-span-2">
             <span className="text-zinc-600 font-bold block text-xs">نوع المعاملة:</span>
-            <span className={`inline-block px-3 py-1 rounded-md font-black text-xs sm:text-sm ${
-              isDeposit ? 'bg-emerald-100 text-emerald-950 border border-emerald-300' : 'bg-rose-100 text-rose-950 border border-rose-300'
+            <span className={`inline-block px-3 py-0.5 rounded-md font-black text-xs ${
+              isTreasuryClearance
+                ? 'bg-purple-100 text-purple-950 border border-purple-300'
+                : isDeposit
+                ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
+                : 'bg-rose-100 text-rose-950 border border-rose-300'
             }`}>
-              {isPersonSubtype
-                ? isDeposit ? 'إيداع نقدي من شخص' : 'سحب نقدي للأشخاص'
-                : isDeposit ? 'إيداع نقدي (قبض)' : 'سحب نقدي (صرف)'
+              {isTreasuryClearance
+                ? 'سحب نقدي (تفريغ من الخزينة لمصلحة الإدارة العليا)'
+                : isCumulativeSubtype
+                ? isDeposit
+                  ? 'إيداع نقدي تجميعي (بنود متعددة)'
+                  : 'سحب نقدي تجميعي (فاتورة متعددة البنود)'
+                : isDeposit
+                  ? (isPersonSubtype ? 'إيداع نقدي من شخص' : 'إيداع نقدي (قبض)')
+                  : 'سحب'
               }
             </span>
           </div>
 
           {/* Row 3: Amount Box (Enlarged & Right-Aligned Value) */}
-          <div className="col-span-2 mt-0.5 p-2.5 rounded-lg border-2 border-emerald-600 bg-emerald-50 flex items-center justify-start gap-3">
-            <span className="font-black text-xs sm:text-sm text-emerald-950 shrink-0">المبلغ المقيد بالإيصال:</span>
-            <span className="font-black text-xl sm:text-2xl text-emerald-950 ar-num">
+          <div className="col-span-2 mt-0.5 p-2 rounded-lg border-2 border-emerald-600 bg-emerald-50 flex items-center justify-start gap-3">
+            <span className="font-black text-xs sm:text-sm text-emerald-950 shrink-0">
+              {isCumulativeSubtype
+                ? isDeposit
+                  ? 'المجموع النهائي للإيداع:'
+                  : 'المجموع النهائي للفاتورة:'
+                : 'المبلغ المقيد بالإيصال:'}
+            </span>
+            <span className="font-black text-lg sm:text-xl text-emerald-950 ar-num">
               {formatCurrency(transaction.amount_cents)}
             </span>
           </div>
@@ -181,7 +257,7 @@ export function PrintReceipt({ transaction, serialNumber, isPreview = false }: P
           {/* Row 4: Reason / Notes */}
           <div className="space-y-0.5 col-span-2 pt-1 border-t border-zinc-200">
             <span className="text-zinc-600 font-bold block text-xs">سبب المعاملة / الملاحظات:</span>
-            <span className="font-bold text-xs sm:text-sm text-zinc-950 block">
+            <span className="font-bold text-xs text-zinc-950 block">
               {transaction.notes?.trim() || 'لا توجد ملاحظات مسجلة'}
             </span>
           </div>

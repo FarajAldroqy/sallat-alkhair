@@ -50,6 +50,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateTransactionNotes: (params: { id: number; notes: string }): Promise<{ success: boolean; id?: number; notes?: string; error?: string }> =>
     ipcRenderer.invoke('db:update-transaction-notes', params),
 
+  updateTransaction: (params: any): Promise<{ success: boolean; transaction?: any; error?: string }> =>
+    ipcRenderer.invoke('db:update-transaction', params),
+
   deleteTransactionsBatch: (ids: number[], permanent?: boolean): Promise<{ success: boolean; count?: number; error?: string }> =>
     ipcRenderer.invoke('db:delete-transactions-batch', ids, permanent),
 
@@ -71,6 +74,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   notifyAutoBackupCompleted: (): Promise<{ success: boolean }> =>
     ipcRenderer.invoke('app:auto-backup-completed'),
+
+  savePDF: (params?: { filename?: string; landscape?: boolean; showInFolder?: boolean }): Promise<{ success: boolean; filePath?: string; filename?: string; error?: string }> =>
+    ipcRenderer.invoke('app:save-pdf', params),
+
+  sendWhatsApp: (params: { phone?: string; message?: string; filePath?: string }): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('app:send-whatsapp', params),
+
+  copyFileToClipboard: (filePath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('app:copy-file-to-clipboard', filePath),
+
+  openExternal: (url: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('app:open-external', url),
+
+  showItemInFolder: (filePath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('app:show-item-in-folder', filePath),
+
+  openPath: (filePath: string): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('app:open-path', filePath),
 })
 
 // Keep legacy ipcRenderer for backward compatibility

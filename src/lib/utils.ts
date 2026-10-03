@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import type { InvoiceItem } from '@/types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -171,4 +172,70 @@ export function getDateFilterText(filter?: any): string {
 
   return 'تقرير شامل لجميع الفترات'
 }
+
+/** Bulletproof helper: ensures person_names is always returned as a guaranteed string array */
+export function getSafePersonNames(names: any): string[] {
+  if (!names) return []
+  if (Array.isArray(names)) {
+    return names.map((n) => String(n).trim()).filter(Boolean)
+  }
+  if (typeof names === 'string') {
+    const trimmed = names.trim()
+    if (!trimmed) return []
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) {
+        return parsed.map((n) => String(n).trim()).filter(Boolean)
+      }
+      if (typeof parsed === 'string' && parsed.trim()) {
+        return [parsed.trim()]
+      }
+    } catch {
+      return [trimmed]
+    }
+  }
+  return []
+}
+
+/** Bulletproof helper: ensures invoice_items is always returned as a valid InvoiceItem array */
+export function getSafeInvoiceItems(items: any): InvoiceItem[] {
+  if (!items) return []
+  if (Array.isArray(items)) {
+    return items.filter((it) => it && typeof it === 'object' && typeof it.name === 'string')
+  }
+  if (typeof items === 'string') {
+    const trimmed = items.trim()
+    if (!trimmed) return []
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) {
+        return parsed.filter((it) => it && typeof it === 'object' && typeof it.name === 'string')
+      }
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
+/** Format a Libyan / international phone number into standard international format for WhatsApp wa.me link */
+export function normalizeWhatsAppPhone(rawPhone: string): string {
+  const digits = rawPhone.replace(/\D/g, '')
+  if (!digits) return ''
+
+  // If starts with 0 (e.g., Libyan 091, 092, 094, 093, 095)
+  if (digits.startsWith('0')) {
+    return '218' + digits.slice(1)
+  }
+
+  // If user entered 91xxxxxxx or 92xxxxxxx (8 or 9 digits)
+  if (digits.length === 8 || digits.length === 9) {
+    if (digits.startsWith('9')) {
+      return '218' + digits
+    }
+  }
+
+  return digits
+}
+
 

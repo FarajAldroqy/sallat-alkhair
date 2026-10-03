@@ -11,12 +11,13 @@ import {
 } from '@/components/ui/dialog'
 import {
   Eye, Printer, Plus, CheckSquare, Filter,
-  ChevronLeft, ChevronRight, Pin, Trash2, Archive, FileText, Edit3, Loader2, Download,
+  ChevronLeft, ChevronRight, ChevronDown, Pin, Trash2, Archive, FileText, Edit3, Loader2, Download, Receipt, Landmark, MessageCircle,
 } from 'lucide-react'
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion'
-import { formatCurrency, formatDate, filterTransactionsByDate } from '@/lib/utils'
-import type { Transaction, TransactionCreate, DateFilter } from '@/types'
+import { formatCurrency, formatDate, filterTransactionsByDate, getSafePersonNames, getSafeInvoiceItems } from '@/lib/utils'
+import type { Transaction, TransactionCreate, TransactionUpdate, DateFilter } from '@/types'
 import { TransactionModal } from './TransactionModal'
+import { EditTransactionModal } from './EditTransactionModal'
 import { ReceiptModal } from './ReceiptModal'
 import { DeleteConfirmModal } from './DeleteConfirmModal'
 import { PrintReceipt } from './PrintReceipt'
@@ -49,13 +50,23 @@ function sortTransactions(items: Transaction[]): Transaction[] {
 
 interface TransactionsTableProps {
   searchValue: string
+  paymentCategory?: 'ALL' | 'CASH' | 'BANK'
   onStatsRefresh: () => void
   dateFilter?: DateFilter
   onArchiveRow?: (tx: Transaction) => void
   onDeleteRow?: (tx: Transaction) => void
+  refreshTrigger?: number
 }
 
-export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onArchiveRow, onDeleteRow }: TransactionsTableProps) {
+export function TransactionsTable({
+  searchValue,
+  paymentCategory = 'ALL',
+  onStatsRefresh,
+  dateFilter,
+  onArchiveRow,
+  onDeleteRow,
+  refreshTrigger,
+}: TransactionsTableProps) {
   const { hasPermission } = usePermission()
   const canEditData = hasPermission('edit_data')
   const canDeleteItems = hasPermission('delete_items')
@@ -64,7 +75,6 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'DEPOSIT' | 'WITHDRAWAL'>('ALL')
-  const [activeTab, setActiveTab] = useState<'all' | 'deposits' | 'withdrawals'>('all')
   const [loading, setLoading] = useState(false)
 
   // Swiped row state for slide-to-reveal action bar
@@ -81,6 +91,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
 
   // Audio-style pagination range slider toggle state
   const [isSliderMode, setIsSliderMode] = useState(false)
+  const [expandedInvoiceIds, setExpandedInvoiceIds] = useState<Set<number>>(new Set())
 
   // Transaction creation modal state
   const [modalOpen, setModalOpen] = useState(false)
@@ -113,8 +124,15 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
     }
     setLoading(true)
     try {
+      const effectivePaymentCategory = paymentCategory !== 'ALL' ? paymentCategory : (
+        dashboardFilter.paymentMethod !== 'ALL'
+          ? (dashboardFilter.paymentMethod === 'نقداً' ? 'CASH' : 'BANK')
+          : 'ALL'
+      )
+
       const hasCustomFilters =
         (dateFilter && dateFilter.mode !== 'NONE') ||
+        effectivePaymentCategory !== 'ALL' ||
         dashboardFilter.paymentMethod !== 'ALL' ||
         dashboardFilter.minAmount.trim() !== '' ||
         dashboardFilter.maxAmount.trim() !== '' ||
@@ -140,9 +158,19 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
           items = filterTransactionsByDate(items, dateFilter)
         }
 
-        // Apply payment method filter
-        if (dashboardFilter.paymentMethod !== 'ALL') {
-          items = items.filter((t) => t.payment_method === dashboardFilter.paymentMethod)
+        // Apply payment category filter
+        if (effectivePaymentCategory !== 'ALL') {
+          if (effectivePaymentCategory === 'CASH') {
+            items = items.filter((t) => !t.payment_method || t.payment_method === 'نقداً' || t.payment_method === 'CASH')
+          } else if (effectivePaymentCategory === 'BANK') {
+            items = items.filter((t) => t.payment_method === 'بنك' || t.payment_method === 'تحويل مصرفي' || t.payment_method === 'BANK_TRANSFER' || t.payment_method === 'BANK')
+          }
+        } else if (dashboardFilter.paymentMethod !== 'ALL') {
+          if (dashboardFilter.paymentMethod === 'بنك' || (dashboardFilter.paymentMethod as any) === 'تحويل مصرفي') {
+            items = items.filter((t) => t.payment_method === 'بنك' || t.payment_method === 'تحويل مصرفي' || t.payment_method === 'BANK_TRANSFER')
+          } else {
+            items = items.filter((t) => t.payment_method === dashboardFilter.paymentMethod)
+          }
         }
 
         // Apply min amount filter
@@ -195,17 +223,29 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
     } finally {
       setLoading(false)
     }
-  }, [page, searchValue, typeFilter, dateFilter, dashboardFilter])
+  }, [page, searchValue, typeFilter, dateFilter, dashboardFilter, paymentCategory])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   useEffect(() => {
     setPage(1)
-  }, [searchValue, typeFilter, dateFilter, dashboardFilter])
+  }, [searchValue, typeFilter, dateFilter, dashboardFilter, paymentCategory])
 
   useEffect(() => {
     fetchData()
-  }, [fetchData])
+  }, [fetchData, refreshTrigger])
+
+  // Reactive listener: automatically update table whenever any transaction is restored or deleted
+  useEffect(() => {
+    const handleTransactionsUpdated = () => {
+      fetchData()
+      onStatsRefresh()
+    }
+    window.addEventListener('mjs:transactions-updated', handleTransactionsUpdated)
+    return () => {
+      window.removeEventListener('mjs:transactions-updated', handleTransactionsUpdated)
+    }
+  }, [fetchData, onStatsRefresh])
 
   // Click-outside and Escape key listener to dismiss swiped row
   useEffect(() => {
@@ -287,10 +327,12 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
       onDeleteRow?.(targetTx)
     }
 
+    // Immediately remove from UI for fluid non-blocking feel
+    setData((prev) => prev.filter((item) => item.id !== targetId))
+    const newTotal = Math.max(0, total - 1)
+    setTotal(newTotal)
+
     setTimeout(async () => {
-      setData((prev) => prev.filter((item) => item.id !== targetId))
-      const newTotal = Math.max(0, total - 1)
-      setTotal(newTotal)
       setDeletingId(null)
 
       const newTotalPages = Math.max(1, Math.ceil(newTotal / PAGE_SIZE))
@@ -298,12 +340,19 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
         setPage(newTotalPages)
       }
 
-      if (window.electronAPI?.deleteTransaction) {
-        await window.electronAPI.deleteTransaction(targetId)
-        onStatsRefresh()
-        fetchData()
+      try {
+        if (window.electronAPI?.deleteTransaction) {
+          await window.electronAPI.deleteTransaction(targetId)
+          onStatsRefresh()
+          fetchData()
+        }
+      } catch (err) {
+        console.error('Failed to delete transaction:', err)
+      } finally {
+        document.body.style.pointerEvents = 'auto'
+        window.dispatchEvent(new CustomEvent('mjs:transactions-updated'))
       }
-    }, 350)
+    }, 120)
   }
 
   // OPTIMISTIC UI: Execute Archive with Gray exit animation & dynamic page backfilling
@@ -385,11 +434,67 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
   // Custom Report Modal State
   const [reportModalOpen, setReportModalOpen] = useState(false)
 
+  // Full Edit Transaction Modal State & Handlers
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
+
+  const handleOpenEditModal = (tx?: Transaction) => {
+    if (!canEditData) {
+      alert('عذراً، لا تملك صلاحية تعديل المعاملات')
+      return
+    }
+    if (tx) {
+      setEditingTransaction(tx)
+    } else if (selectedIds.length === 1) {
+      const found = data.find((t) => t.id === selectedIds[0])
+      setEditingTransaction(found || null)
+    } else if (selectedIds.length > 1) {
+      const found = data.find((t) => t.id === selectedIds[0])
+      setEditingTransaction(found || null)
+    } else {
+      setEditingTransaction(data.length > 0 ? data[0] : null)
+    }
+    setEditModalOpen(true)
+  }
+
+  const handleSaveEdit = async (payload: TransactionUpdate) => {
+    initMockElectronAPI()
+    if (window.electronAPI?.updateTransaction) {
+      const res = await window.electronAPI.updateTransaction(payload)
+      if (!res.success) {
+        throw new Error(res.error || 'فشل تحديث المعاملة في قاعدة البيانات')
+      }
+    }
+
+    playClickSound()
+    logUserAction(
+      'EDIT',
+      'مالية',
+      'تعديل بيانات معاملة في قاعدة البيانات',
+      `معاملة رقم #${payload.id} | جهة/عنصر: ${payload.client_name} | قيمة: ${formatCurrency(payload.amount_cents || 0)}`
+    )
+
+    onStatsRefresh()
+    await fetchData()
+    window.dispatchEvent(new CustomEvent('mjs:transactions-updated'))
+    document.body.style.pointerEvents = 'auto'
+  }
+
   // Direct printable receipt state (for printer icon button direct print without preview modal)
   const [directPrintReceipt, setDirectPrintReceipt] = useState<Transaction | null>(null)
 
+  // Receipt viewing modal state
+  const [receiptOpenWhatsApp, setReceiptOpenWhatsApp] = useState(false)
+
   const handleViewReceipt = (tx: Transaction) => {
     setSelectedReceipt(tx)
+    setReceiptOpenWhatsApp(false)
+    setReceiptOpen(true)
+  }
+
+  const handleShareWhatsApp = (tx: Transaction) => {
+    setSelectedReceipt(tx)
+    setReceiptOpenWhatsApp(true)
     setReceiptOpen(true)
   }
 
@@ -468,8 +573,8 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
       custom = []
     }
 
-    const txEntities = data.map((t) => t.client_name?.trim()).filter(Boolean) as string[]
-    const combined = Array.from(new Set([...custom, ...txEntities, 'منتجع MJS'])).filter(Boolean)
+    const txEntities = data.filter((t) => t.type === 'DEPOSIT').map((t) => t.client_name?.trim()).filter(Boolean) as string[]
+    const combined = Array.from(new Set([...custom, ...txEntities, 'منتجع MJS'])).filter((n) => n && n !== 'الخزينة الكلية' && n !== 'الخزينة')
     return combined.sort((a, b) => a.localeCompare(b, 'ar'))
   }, [data, modalOpen])
 
@@ -496,25 +601,37 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
 
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return
-    if (!confirm(`هل أنت تأكد من نقل ${selectedIds.length} عنصر إلى سلة المحذوفات؟`)) return
+    if (!confirm(`هل أنت متأكد من نقل ${selectedIds.length} عنصر إلى سلة المحذوفات؟`)) return
 
     const idsToDelete = [...selectedIds]
     setSelectedIds([])
+
+    // Immediate optimistic UI update so interface never blocks
+    setData((prev) => prev.filter((item) => !idsToDelete.includes(item.id)))
+    const newTotal = Math.max(0, total - idsToDelete.length)
+    setTotal(newTotal)
 
     idsToDelete.forEach((id) => {
       const targetTx = data.find((t) => t.id === id)
       if (targetTx) onDeleteRow?.(targetTx)
     })
 
-    if (window.electronAPI?.deleteTransactionsBatch) {
-      await window.electronAPI.deleteTransactionsBatch(idsToDelete, false)
-    } else if (window.electronAPI?.deleteTransaction) {
-      for (const id of idsToDelete) {
-        await window.electronAPI.deleteTransaction(id, false)
+    try {
+      if (window.electronAPI?.deleteTransactionsBatch) {
+        await window.electronAPI.deleteTransactionsBatch(idsToDelete, false)
+      } else if (window.electronAPI?.deleteTransaction) {
+        for (const id of idsToDelete) {
+          await window.electronAPI.deleteTransaction(id, false)
+        }
       }
+    } catch (err) {
+      console.error('Failed bulk delete transactions:', err)
+    } finally {
+      document.body.style.pointerEvents = 'auto'
+      onStatsRefresh()
+      await fetchData()
+      window.dispatchEvent(new CustomEvent('mjs:transactions-updated'))
     }
-    onStatsRefresh()
-    fetchData()
   }
 
   return (
@@ -522,40 +639,15 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
       <div className="space-y-4" dir="rtl" ref={tableRef}>
         {/* Top Toolbar: Filters & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          {/* Right/Start filter tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            <button
-              onClick={() => { setActiveTab('all'); setTypeFilter('ALL') }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-arabic transition-all whitespace-nowrap ${
-                activeTab === 'all'
-                  ? 'bg-zinc-200/80 dark:bg-zinc-800 text-zinc-900 dark:text-white font-bold'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/80 font-medium'
-              }`}
-            >
-              جميع العمليات
-            </button>
-
-            <button
-              onClick={() => { setActiveTab('deposits'); setTypeFilter('DEPOSIT') }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-arabic transition-all whitespace-nowrap ${
-                activeTab === 'deposits'
-                  ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-300 font-bold'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/80 font-medium'
-              }`}
-            >
-              <span>الإيداعات النقدية</span>
-            </button>
-
-            <button
-              onClick={() => { setActiveTab('withdrawals'); setTypeFilter('WITHDRAWAL') }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-arabic transition-all whitespace-nowrap ${
-                activeTab === 'withdrawals'
-                  ? 'bg-rose-100 dark:bg-rose-950/60 text-rose-900 dark:text-rose-300 font-bold'
-                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/80 font-medium'
-              }`}
-            >
-              <span>السحوبات النقدية</span>
-            </button>
+          {/* Right/Start title */}
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 font-arabic">
+              {paymentCategory === 'CASH'
+                ? 'العمليات النقدية (نقداً)'
+                : paymentCategory === 'BANK'
+                ? 'العمليات المصرفية (بنك)'
+                : 'جميع العمليات'}
+            </h3>
           </div>
 
           {/* Left/End action buttons */}
@@ -713,7 +805,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                       </TableHead>
                     )}
                     <TableHead className="flex-1 min-w-0 text-right p-0 font-bold">
-                      اسم الجهة
+                      اسم العنصر / الجهة
                     </TableHead>
                     <TableHead className="w-28 text-center p-0 font-bold shrink-0">
                       نوع العملية
@@ -761,6 +853,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                           const isDeleting = deletingId === tx.id
                           const isArchiving = archivingId === tx.id
                           const isNewlyCreated = newlyCreatedId === tx.id
+                          const isTreasuryClearance = tx.subtype === 'TREASURY_CLEARANCE' || tx.client_name === 'تفريغ من الخزينة'
 
                           return (
                             <motion.tr
@@ -787,6 +880,8 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                   ? 'bg-zinc-100/90 dark:bg-zinc-800/90 font-semibold border-r-4 border-r-zinc-900 dark:border-r-zinc-100 shadow-sm'
                                   : isSwiped
                                   ? 'bg-zinc-50 dark:bg-zinc-800/70'
+                                  : isTreasuryClearance
+                                  ? 'bg-purple-50/70 hover:bg-purple-100/70 dark:bg-purple-950/30 dark:hover:bg-purple-950/50 border-purple-200/70 dark:border-purple-800/40 text-purple-950 dark:text-purple-100'
                                   : 'hover:bg-zinc-50/80 dark:hover:bg-zinc-800/60 bg-white dark:bg-zinc-900'
                               }`}
                             >
@@ -811,6 +906,21 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                       >
                                         <Pin className="w-4 h-4" />
                                       </button>
+
+                                      {/* Edit Button */}
+                                      {canEditData && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setSwipedRowId(null)
+                                            handleOpenEditModal(tx)
+                                          }}
+                                          title="تعديل كافة بيانات المعاملة"
+                                          className="w-12 h-full bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center transition-colors active:opacity-90"
+                                        >
+                                          <Edit3 className="w-4 h-4" />
+                                        </button>
+                                      )}
 
                                       {/* Archive Button */}
                                       <button
@@ -838,7 +948,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                 {/* Sliding Row Content Layer */}
                                 <motion.div
                                   animate={{
-                                    x: isDeleting || isArchiving ? -250 : isSwiped ? (canDeleteItems ? 144 : 96) : 0,
+                                    x: isDeleting || isArchiving ? -250 : isSwiped ? (canDeleteItems ? 192 : 144) : 0,
                                     opacity: isDeleting || isArchiving ? 0 : 1,
                                   }}
                                   transition={{
@@ -869,17 +979,114 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                       </span>
                                     )}
                                     <div className="flex flex-col min-w-0">
-                                      <span className={`text-xs truncate ${isNewlyCreated ? 'text-zinc-950 dark:text-white font-extrabold' : isPinned ? 'font-bold text-zinc-900 dark:text-white' : 'font-semibold text-zinc-900 dark:text-zinc-100'}`}>
-                                        {tx.client_name}
-                                      </span>
-                                      {tx.subtype === 'PERSON' && (
-                                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium truncate">
-                                          {isDeposit
-                                            ? `بواسطة المودِع: ${tx.person_name || 'شخص'}`
-                                            : `المستلمون: ${tx.person_names && tx.person_names.length > 0 ? tx.person_names.join(' ، ') : (tx.person_name || 'شخص')}`
-                                          }
-                                        </span>
-                                      )}
+                                      {(() => {
+                                        if (isTreasuryClearance) {
+                                          return (
+                                            <div className="flex items-center gap-1.5 min-w-0">
+                                              <span className="p-1 rounded bg-purple-100 dark:bg-purple-900/60 text-purple-700 dark:text-purple-300 shrink-0">
+                                                <Landmark className="w-3.5 h-3.5" />
+                                              </span>
+                                              <div className="flex flex-col min-w-0">
+                                                <span className={`text-xs truncate font-bold ${isNewlyCreated ? 'text-zinc-950 dark:text-white font-extrabold' : 'text-purple-950 dark:text-purple-200'}`}>
+                                                  تفريغ من الخزينة
+                                                </span>
+                                                <span className="text-[10px] text-purple-600 dark:text-purple-400 font-medium truncate">
+                                                  سحب لمصلحة الإدارة العليا
+                                                </span>
+                                              </div>
+                                            </div>
+                                          )
+                                        }
+
+                                        const txInvoiceItems = getSafeInvoiceItems(tx.invoice_items)
+                                        const txPersonNames = getSafePersonNames(tx.person_names)
+                                        const isCumulative = tx.subtype === 'CUMULATIVE' || txInvoiceItems.length > 0
+
+                                        if (isCumulative) {
+                                          return (
+                                            <div className="flex flex-col min-w-0">
+                                              <div className="flex items-center gap-1.5 flex-wrap">
+                                                <Receipt className={`w-3.5 h-3.5 shrink-0 ${isDeposit ? 'text-emerald-500' : 'text-rose-500'}`} />
+                                                <span className={`text-xs font-bold ${isNewlyCreated ? 'text-zinc-950 dark:text-white font-extrabold' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                                                  {tx.client_name}
+                                                </span>
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    setExpandedInvoiceIds((prev) => {
+                                                      const next = new Set(prev)
+                                                      if (next.has(tx.id)) next.delete(tx.id)
+                                                      else next.add(tx.id)
+                                                      return next
+                                                    })
+                                                  }}
+                                                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold border transition-colors cursor-pointer ${
+                                                    isDeposit
+                                                      ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/80'
+                                                      : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/80'
+                                                  }`}
+                                                  title={isDeposit ? 'عرض/إخفاء بنود الإيداع' : 'عرض/إخفاء بنود الفاتورة'}
+                                                >
+                                                  <span>
+                                                    {isDeposit ? 'إيداع تجميعي' : 'فاتورة'} ({txInvoiceItems.length || txPersonNames.length || 0} {isDeposit ? 'بنود' : 'عناصر'})
+                                                  </span>
+                                                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${expandedInvoiceIds.has(tx.id) ? 'rotate-180' : ''}`} />
+                                                </button>
+                                              </div>
+
+                                              {/* Expandable Breakdown of Items */}
+                                              {expandedInvoiceIds.has(tx.id) && (
+                                                <div className="flex flex-wrap gap-1 mt-1.5 p-1.5 bg-zinc-50 dark:bg-zinc-800/80 rounded-lg border border-zinc-200 dark:border-zinc-700/80 max-w-md animate-in fade-in-50 duration-150">
+                                                  {txInvoiceItems.length > 0 ? (
+                                                    txInvoiceItems.map((it, idx) => (
+                                                      <span
+                                                        key={idx}
+                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-700 text-[10px] text-zinc-700 dark:text-zinc-300 shadow-2xs"
+                                                      >
+                                                        <span className="font-semibold">{it.name}:</span>
+                                                        <span className={`font-bold ar-num ${isDeposit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                                          {formatCurrency(it.amount_cents)}
+                                                        </span>
+                                                      </span>
+                                                    ))
+                                                  ) : (
+                                                    txPersonNames.map((n, idx) => (
+                                                      <span
+                                                        key={idx}
+                                                        className="inline-flex items-center px-1.5 py-0.5 rounded bg-white dark:bg-zinc-900 border border-zinc-200 text-[10px] text-zinc-700 dark:text-zinc-300"
+                                                      >
+                                                        {n}
+                                                      </span>
+                                                    ))
+                                                  )}
+                                                </div>
+                                              )}
+                                            </div>
+                                          )
+                                        }
+
+                                        if (!isDeposit) {
+                                          return (
+                                            <span className={`text-xs truncate font-bold ${isNewlyCreated ? 'text-zinc-950 dark:text-white font-extrabold' : 'text-zinc-900 dark:text-zinc-100'}`}>
+                                              {tx.person_name || (txPersonNames.length > 0 ? txPersonNames.join(' ، ') : tx.client_name)}
+                                            </span>
+                                          )
+                                        }
+
+                                        return (
+                                          <>
+                                            <span className={`text-xs truncate ${isNewlyCreated ? 'text-zinc-950 dark:text-white font-extrabold' : isPinned ? 'font-bold text-zinc-900 dark:text-white' : 'font-semibold text-zinc-900 dark:text-zinc-100'}`}>
+                                              {tx.client_name}
+                                            </span>
+                                            {tx.subtype === 'PERSON' && (
+                                              <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-medium truncate">
+                                                بواسطة المودِع: {tx.person_name || 'شخص'}
+                                              </span>
+                                            )}
+                                          </>
+                                        )
+                                      })()}
                                     </div>
                                   </div>
 
@@ -888,13 +1095,23 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                     <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded-full border text-[10px] sm:text-[11px] font-bold font-arabic ${
                                       isNewlyCreated
                                         ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-zinc-900 dark:border-zinc-100'
+                                        : isTreasuryClearance
+                                        ? 'bg-purple-100 dark:bg-purple-950/70 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-700'
                                         : isDeposit
-                                        ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                        ? (tx.subtype === 'CUMULATIVE'
+                                            ? 'bg-teal-50 dark:bg-teal-950/50 text-teal-800 dark:text-teal-300 border-teal-300 dark:border-teal-800'
+                                            : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800')
+                                        : tx.subtype === 'CUMULATIVE'
+                                        ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800'
                                         : 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
                                     }`}>
-                                      {tx.subtype === 'PERSON'
-                                        ? isDeposit ? 'إيداع من شخص' : 'سحب للأشخاص'
-                                        : isDeposit ? 'إيداع' : 'سحب'
+                                      {isTreasuryClearance
+                                        ? 'تفريغ من الخزينة'
+                                        : isDeposit
+                                        ? (tx.subtype === 'CUMULATIVE' ? 'إيداع تجميعي' : tx.subtype === 'PERSON' ? 'إيداع من شخص' : 'إيداع')
+                                        : tx.subtype === 'CUMULATIVE'
+                                        ? 'سحب تجميعي'
+                                        : 'سحب'
                                       }
                                     </span>
                                   </div>
@@ -906,7 +1123,7 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                         ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-zinc-900 dark:border-zinc-100'
                                         : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200/70 dark:border-zinc-700'
                                     }`}>
-                                      {tx.payment_method || 'نقداً'}
+                                      {tx.payment_method === 'تحويل مصرفي' || tx.payment_method === 'BANK_TRANSFER' ? 'بنك' : (tx.payment_method || 'نقداً')}
                                     </span>
                                   </div>
 
@@ -932,7 +1149,13 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                   {/* 5. القيمة */}
                                   <div className="w-36 text-right font-arabic ar-num shrink-0">
                                     <span className={`text-xs font-semibold ${
-                                      isNewlyCreated ? 'text-zinc-950 dark:text-white font-extrabold' : isDeposit ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                                      isNewlyCreated
+                                        ? 'text-zinc-950 dark:text-white font-extrabold'
+                                        : isTreasuryClearance
+                                        ? 'text-purple-700 dark:text-purple-400 font-bold'
+                                        : isDeposit
+                                        ? 'text-emerald-600 dark:text-emerald-400'
+                                        : 'text-rose-600 dark:text-rose-400'
                                     }`}>
                                       {isDeposit ? '+' : '-'}{formatCurrency(tx.amount_cents)}
                                     </span>
@@ -944,7 +1167,15 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
                                   </div>
 
                                   {/* 7. الإجراء */}
-                                  <div className="w-24 text-center flex items-center justify-center gap-1 shrink-0">
+                                  <div className="w-28 text-center flex items-center justify-center gap-1 shrink-0">
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); handleShareWhatsApp(tx) }}
+                                      className="p-1.5 rounded-md transition-colors border border-transparent text-[#25D366] hover:text-[#20ba5a] hover:bg-emerald-50 dark:hover:bg-emerald-950/60 hover:border-emerald-200 dark:hover:border-emerald-800"
+                                      title="إرسال الإيصال كملف PDF على واتساب"
+                                    >
+                                      <MessageCircle className="w-4 h-4 fill-current" />
+                                    </button>
+
                                     <button
                                       onClick={(e) => { e.stopPropagation(); handleViewReceipt(tx) }}
                                       className="p-1.5 rounded-md transition-colors border border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:border-zinc-200 dark:hover:border-zinc-700"
@@ -1095,7 +1326,12 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
       <ReceiptModal
         transaction={selectedReceipt}
         open={receiptOpen}
-        onClose={() => setSelectedReceipt(null)}
+        onClose={() => {
+          setSelectedReceipt(null)
+          setReceiptOpenWhatsApp(false)
+          setReceiptOpen(false)
+        }}
+        initialOpenWhatsApp={receiptOpenWhatsApp}
       />
 
       {/* Delete confirmation modal */}
@@ -1103,6 +1339,18 @@ export function TransactionsTable({ searchValue, onStatsRefresh, dateFilter, onA
         open={pendingDeleteId !== null}
         onClose={() => setPendingDeleteId(null)}
         onConfirm={handleConfirmDelete}
+      />
+
+      {/* Edit Full Transaction Modal */}
+      <EditTransactionModal
+        open={editModalOpen}
+        transaction={editingTransaction}
+        transactionsList={data}
+        onClose={() => {
+          setEditModalOpen(false)
+          setEditingTransaction(null)
+        }}
+        onSave={handleSaveEdit}
       />
 
       {/* Interactive Report Customization & Live Preview Modal */}

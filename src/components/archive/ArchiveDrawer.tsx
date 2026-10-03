@@ -144,6 +144,8 @@ export function ArchiveDrawer({
       await onRestoreDashboardRow(id)
     }
     setSelectedDashIds([])
+    window.dispatchEvent(new CustomEvent('mjs:transactions-updated'))
+    document.body.style.pointerEvents = 'auto'
   }
 
   const handleBatchRestoreTreasury = async () => {
@@ -374,6 +376,8 @@ export function ArchiveDrawer({
                                               logUserAction('RESTORE', 'سلة المهملات والأرشيف', 'استعادة معاملة من الأرشيف', `جهة: ${tx.client_name} | قيمة: ${formatCurrency(tx.amount_cents)}`)
                                               await onRestoreDashboardRow(tx.id)
                                               setSwipedDashId(null)
+                                              window.dispatchEvent(new CustomEvent('mjs:transactions-updated'))
+                                              document.body.style.pointerEvents = 'auto'
                                             }}
                                             className="px-3 bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1 font-bold text-[11px] transition-colors"
                                             title="استعادة المعاملة"

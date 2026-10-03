@@ -1,18 +1,30 @@
-import { Printer, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Printer, X, MessageCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Transaction } from '@/types'
 import { usePermission } from '@/hooks/usePermission'
 import { PrintReceipt, getReceiptSerial } from './PrintReceipt'
+import { WhatsAppShareModal } from './WhatsAppShareModal'
 
 interface ReceiptModalProps {
   transaction: Transaction | null
   open: boolean
   onClose: () => void
+  initialOpenWhatsApp?: boolean
 }
 
-export function ReceiptModal({ transaction, open, onClose }: ReceiptModalProps) {
+export function ReceiptModal({ transaction, open, onClose, initialOpenWhatsApp = false }: ReceiptModalProps) {
   const { hasPermission } = usePermission()
   const canExportReports = hasPermission('export_reports')
+  const [whatsAppOpen, setWhatsAppOpen] = useState(false)
+
+  useEffect(() => {
+    if (open && initialOpenWhatsApp) {
+      setWhatsAppOpen(true)
+    } else if (!open) {
+      setWhatsAppOpen(false)
+    }
+  }, [open, initialOpenWhatsApp])
 
   if (!open || !transaction) return null
 
@@ -57,6 +69,16 @@ export function ReceiptModal({ transaction, open, onClose }: ReceiptModalProps) 
             </div>
 
             <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                onClick={() => setWhatsAppOpen(true)}
+                className="gap-1.5 bg-[#25D366] hover:bg-[#20ba5a] text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-sm transition-all active:scale-95 border border-emerald-600/30"
+                title="إرسال الإيصال كملف PDF عبر تطبيق واتساب"
+              >
+                <MessageCircle className="w-4 h-4 fill-current" />
+                <span>إرسال واتساب (PDF)</span>
+              </Button>
+
               {canExportReports && (
                 <Button
                   type="button"
@@ -88,6 +110,15 @@ export function ReceiptModal({ transaction, open, onClose }: ReceiptModalProps) 
           </div>
         </div>
       </div>
+
+      {/* WhatsApp Sharing Dialog */}
+      <WhatsAppShareModal
+        open={whatsAppOpen}
+        onClose={() => setWhatsAppOpen(false)}
+        mode="RECEIPT"
+        transaction={transaction}
+        serialNumber={serial}
+      />
     </>
   )
 }

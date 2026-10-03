@@ -1,5 +1,10 @@
-export type PaymentMethod = 'نقداً' | 'تحويل مصرفي' | 'بطاقة'
-export type TransactionSubtype = 'REGULAR' | 'PERSON'
+export type PaymentMethod = 'نقداً' | 'بنك' | 'تحويل مصرفي' | 'بطاقة'
+export type TransactionSubtype = 'REGULAR' | 'PERSON' | 'CUMULATIVE' | 'TREASURY_CLEARANCE'
+
+export interface InvoiceItem {
+  name: string
+  amount_cents: number
+}
 
 export interface Transaction {
   id: number
@@ -8,6 +13,7 @@ export interface Transaction {
   subtype?: TransactionSubtype
   person_name?: string
   person_names?: string[]
+  invoice_items?: InvoiceItem[]
   amount_cents: number
   payment_method?: PaymentMethod | string
   notes?: string
@@ -24,10 +30,26 @@ export interface TransactionCreate {
   subtype?: TransactionSubtype
   person_name?: string
   person_names?: string[]
+  invoice_items?: InvoiceItem[]
   amount_cents: number
   payment_method: PaymentMethod | string
   notes?: string
   status?: 'COMPLETED' | 'PENDING' | 'FAILED' | 'PROCESSING'
+}
+
+export interface TransactionUpdate {
+  id: number
+  client_name?: string
+  type?: 'DEPOSIT' | 'WITHDRAWAL'
+  subtype?: TransactionSubtype
+  person_name?: string
+  person_names?: string[]
+  invoice_items?: InvoiceItem[]
+  amount_cents?: number
+  payment_method?: PaymentMethod | string
+  notes?: string
+  status?: 'COMPLETED' | 'PENDING' | 'FAILED' | 'PROCESSING' | string
+  created_at?: string
 }
 
 export interface Stats {
@@ -37,9 +59,15 @@ export interface Stats {
   active_accounts: number
   deposit_count: number
   withdrawal_count: number
+  cash_balance_cents?: number
+  cash_deposits_cents?: number
+  cash_withdrawals_cents?: number
   cash_deposit_count?: number
-  bank_deposit_count?: number
   cash_withdrawal_count?: number
+  bank_balance_cents?: number
+  bank_deposits_cents?: number
+  bank_withdrawals_cents?: number
+  bank_deposit_count?: number
   bank_withdrawal_count?: number
 }
 

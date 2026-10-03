@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import {
-  Printer, X, CheckSquare, Square, FileText, SlidersHorizontal,
+  Printer, X, CheckSquare, Square, FileText, SlidersHorizontal, MessageCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { formatCurrency, formatDate, getDateFilterText } from '@/lib/utils'
+import { formatCurrency, formatDate, getDateFilterText, getSafeInvoiceItems } from '@/lib/utils'
 import type { Transaction, Stats, DateFilter } from '@/types'
 import { usePermission } from '@/hooks/usePermission'
 import { logUserAction } from '@/lib/auditLogger'
 import logoImg from '@/assets/logo.png'
+import { WhatsAppShareModal } from './WhatsAppShareModal'
 
 interface ColumnToggles {
   clientName: boolean
@@ -42,6 +43,7 @@ export function TransactionsReportModal({
 }: TransactionsReportModalProps) {
   const { hasPermission } = usePermission()
   const canExportReports = hasPermission('export_reports')
+  const [whatsAppModalOpen, setWhatsAppModalOpen] = useState(false)
 
   // 1. Column customization toggles state
   const [columns, setColumns] = useState<ColumnToggles>({
@@ -215,34 +217,73 @@ export function TransactionsReportModal({
           <tbody>
             {transactions.map((tx, idx) => {
               const isDeposit = tx.type === 'DEPOSIT'
+              const isTreasuryClearance = tx.subtype === 'TREASURY_CLEARANCE' || tx.client_name === 'تفريغ من الخزينة'
+              const txInvoiceItems = getSafeInvoiceItems(tx.invoice_items)
+              const isCumulative = tx.subtype === 'CUMULATIVE' || txInvoiceItems.length > 0
               return (
-                <tr key={tx.id || idx} className="border-b border-zinc-200">
-                  {columns.clientName && <td className="p-2.5 font-bold border-l border-zinc-200">{tx.client_name}</td>}
+                <tr key={tx.id || idx} className={`border-b border-zinc-200 ${isTreasuryClearance ? 'bg-purple-50/40' : ''}`}>
+                  {columns.clientName && (
+                    <td className="p-2.5 font-bold border-l border-zinc-200 align-top">
+                      <div className={isTreasuryClearance ? 'text-purple-900 font-extrabold' : ''}>{tx.client_name}</div>
+                      {isCumulative && txInvoiceItems.length > 0 && (
+                        <div className="mt-1.5 pt-1 border-t border-zinc-200">
+                          <table className="w-full text-[10px] border border-zinc-300 rounded overflow-hidden">
+                            <thead>
+                              <tr className="bg-zinc-100 text-zinc-700 border-b border-zinc-300">
+                                <th className="py-0.5 px-1.5 text-right font-semibold">#</th>
+                                <th className="py-0.5 px-1.5 text-right font-semibold">{isDeposit ? 'بند الإيداع' : 'عنصر الفاتورة'}</th>
+                                <th className="py-0.5 px-1.5 text-left font-semibold">القيمة</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {txInvoiceItems.map((item, itemIdx) => (
+                                <tr key={itemIdx} className="border-b border-zinc-200 last:border-0 bg-white">
+                                  <td className="py-0.5 px-1.5 text-zinc-500 font-mono text-[9px]">{itemIdx + 1}</td>
+                                  <td className="py-0.5 px-1.5 text-zinc-800 font-medium">{item.name}</td>
+                                  <td className="py-0.5 px-1.5 text-zinc-900 font-bold text-left font-mono">{formatCurrency(item.amount_cents)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </td>
+                  )}
                   {columns.type && (
-                    <td className="p-2.5 text-center border-l border-zinc-200">
-                      <span className={`font-black ${isDeposit ? 'text-emerald-700' : 'text-rose-700'}`}>
-                        {isDeposit ? 'إيداع (قبض)' : 'سحب (صرف)'}
+                    <td className="p-2.5 text-center border-l border-zinc-200 align-top">
+                      <span className={`font-black ${
+                        isTreasuryClearance
+                          ? 'text-purple-700'
+                          : isDeposit
+                          ? 'text-emerald-700'
+                          : 'text-rose-700'
+                      }`}>
+                        {isTreasuryClearance
+                          ? 'تفريغ من الخزينة'
+                          : isDeposit
+                          ? (isCumulative ? 'إيداع تجميعي' : 'إيداع (قبض)')
+                          : (isCumulative ? 'سحب تجميعي' : 'سحب (صرف)')}
                       </span>
                     </td>
                   )}
                   {columns.paymentMethod && (
-                    <td className="p-2.5 text-center border-l border-zinc-200 font-semibold">
-                      {tx.payment_method || 'نقداً'}
+                    <td className="p-2.5 text-center border-l border-zinc-200 font-semibold align-top">
+                      {tx.payment_method === 'تحويل مصرفي' || tx.payment_method === 'BANK_TRANSFER' ? 'بنك' : (tx.payment_method || 'نقداً')}
                     </td>
                   )}
                   {columns.amount && (
-                    <td className="p-2.5 text-left border-l border-zinc-200 font-black ar-num">
-                      <span className={isDeposit ? 'text-emerald-700' : 'text-rose-700'}>
+                    <td className="p-2.5 text-left border-l border-zinc-200 font-black ar-num align-top">
+                      <span className={isTreasuryClearance ? 'text-purple-700' : isDeposit ? 'text-emerald-700' : 'text-rose-700'}>
                         {isDeposit ? '+' : '-'}{formatCurrency(tx.amount_cents)}
                       </span>
                     </td>
                   )}
                   {columns.date && (
-                    <td className="p-2.5 text-center border-l border-zinc-200 font-medium ar-num dir-ltr">
+                    <td className="p-2.5 text-center border-l border-zinc-200 font-medium ar-num dir-ltr align-top">
                       {formatDate(tx.created_at)}
                     </td>
                   )}
-                  {columns.notes && <td className="p-2.5 text-zinc-600 font-medium">{tx.notes || '-'}</td>}
+                  {columns.notes && <td className="p-2.5 text-zinc-600 font-medium align-top">{tx.notes || '-'}</td>}
                 </tr>
               )
             })}
@@ -279,6 +320,16 @@ export function TransactionsReportModal({
             </div>
 
             <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                onClick={() => setWhatsAppModalOpen(true)}
+                className="gap-2 bg-[#25D366] hover:bg-[#20ba5a] text-white font-black text-xs px-4 py-2 rounded-xl shadow-md transition-all active:scale-95 border border-emerald-600/30"
+                title="إرسال التقرير المالي كملف PDF عبر واتساب"
+              >
+                <MessageCircle className="w-4 h-4 fill-current" />
+                <span>إرسال واتساب (PDF)</span>
+              </Button>
+
               {canExportReports && (
                 <Button
                   type="button"
@@ -501,34 +552,73 @@ export function TransactionsReportModal({
                     <tbody>
                       {transactions.map((tx, idx) => {
                         const isDeposit = tx.type === 'DEPOSIT'
+                        const isTreasuryClearance = tx.subtype === 'TREASURY_CLEARANCE' || tx.client_name === 'تفريغ من الخزينة'
+                        const txInvoiceItems = getSafeInvoiceItems(tx.invoice_items)
+                        const isCumulative = tx.subtype === 'CUMULATIVE' || txInvoiceItems.length > 0
                         return (
-                          <tr key={tx.id || idx} className="border-b border-zinc-200 hover:bg-zinc-50">
-                            {columns.clientName && <td className="p-2.5 font-bold border-l border-zinc-200">{tx.client_name}</td>}
+                          <tr key={tx.id || idx} className={`border-b border-zinc-200 ${isTreasuryClearance ? 'bg-purple-50/50 hover:bg-purple-100/50' : 'hover:bg-zinc-50'}`}>
+                            {columns.clientName && (
+                              <td className="p-2.5 font-bold border-l border-zinc-200 align-top">
+                                <div className={isTreasuryClearance ? 'text-purple-900 font-extrabold' : ''}>{tx.client_name}</div>
+                                {isCumulative && txInvoiceItems.length > 0 && (
+                                  <div className="mt-1.5 pt-1 border-t border-zinc-200">
+                                    <table className="w-full text-[10px] border border-zinc-300 rounded overflow-hidden">
+                                      <thead>
+                                        <tr className="bg-zinc-100 text-zinc-700 border-b border-zinc-300">
+                                          <th className="py-0.5 px-1.5 text-right font-semibold">#</th>
+                                          <th className="py-0.5 px-1.5 text-right font-semibold">{isDeposit ? 'بند الإيداع' : 'عنصر الفاتورة'}</th>
+                                          <th className="py-0.5 px-1.5 text-left font-semibold">القيمة</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {txInvoiceItems.map((item, itemIdx) => (
+                                          <tr key={itemIdx} className="border-b border-zinc-200 last:border-0 bg-white">
+                                            <td className="py-0.5 px-1.5 text-zinc-500 font-mono text-[9px]">{itemIdx + 1}</td>
+                                            <td className="py-0.5 px-1.5 text-zinc-800 font-medium">{item.name}</td>
+                                            <td className="py-0.5 px-1.5 text-zinc-900 font-bold text-left font-mono">{formatCurrency(item.amount_cents)}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </td>
+                            )}
                             {columns.type && (
-                              <td className="p-2.5 text-center border-l border-zinc-200">
-                                <span className={`font-black ${isDeposit ? 'text-emerald-700' : 'text-rose-700'}`}>
-                                  {isDeposit ? 'إيداع (قبض)' : 'سحب (صرف)'}
+                              <td className="p-2.5 text-center border-l border-zinc-200 align-top">
+                                <span className={`font-black ${
+                                  isTreasuryClearance
+                                    ? 'text-purple-700'
+                                    : isDeposit
+                                    ? 'text-emerald-700'
+                                    : 'text-rose-700'
+                                }`}>
+                                  {isTreasuryClearance
+                                    ? 'تفريغ من الخزينة'
+                                    : isDeposit
+                                    ? (isCumulative ? 'إيداع تجميعي' : 'إيداع (قبض)')
+                                    : (isCumulative ? 'سحب تجميعي' : 'سحب (صرف)')}
                                 </span>
                               </td>
                             )}
                             {columns.paymentMethod && (
-                              <td className="p-2.5 text-center border-l border-zinc-200 font-semibold">
-                                {tx.payment_method || 'نقداً'}
+                              <td className="p-2.5 text-center border-l border-zinc-200 font-semibold align-top">
+                                {tx.payment_method === 'تحويل مصرفي' || tx.payment_method === 'BANK_TRANSFER' ? 'بنك' : (tx.payment_method || 'نقداً')}
                               </td>
                             )}
                             {columns.amount && (
-                              <td className="p-2.5 text-left border-l border-zinc-200 font-black ar-num">
-                                <span className={isDeposit ? 'text-emerald-700' : 'text-rose-700'}>
+                              <td className="p-2.5 text-left border-l border-zinc-200 font-black ar-num align-top">
+                                <span className={isTreasuryClearance ? 'text-purple-700' : isDeposit ? 'text-emerald-700' : 'text-rose-700'}>
                                   {isDeposit ? '+' : '-'}{formatCurrency(tx.amount_cents)}
                                 </span>
                               </td>
                             )}
                             {columns.date && (
-                              <td className="p-2.5 text-center border-l border-zinc-200 font-medium ar-num dir-ltr">
+                              <td className="p-2.5 text-center border-l border-zinc-200 font-medium ar-num dir-ltr align-top">
                                 {formatDate(tx.created_at)}
                               </td>
                             )}
-                            {columns.notes && <td className="p-2.5 text-zinc-600 font-medium">{tx.notes || '-'}</td>}
+                            {columns.notes && <td className="p-2.5 text-zinc-600 font-medium align-top">{tx.notes || '-'}</td>}
                           </tr>
                         )
                       })}
@@ -548,6 +638,19 @@ export function TransactionsReportModal({
           </div>
         </div>
       </div>
+
+      {/* WhatsApp PDF Sharing Modal */}
+      <WhatsAppShareModal
+        open={whatsAppModalOpen}
+        onClose={() => setWhatsAppModalOpen(false)}
+        mode="REPORT"
+        reportStats={{
+          count: transactions.length,
+          depositsTotal: totalDep,
+          withdrawalsTotal: totalWithd,
+          dateFilterText: filterText,
+        }}
+      />
     </>
   )
 }

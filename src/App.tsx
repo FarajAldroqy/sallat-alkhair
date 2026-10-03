@@ -82,6 +82,7 @@ export default function App() {
   const [activeSection, setActiveSection] = useState('dashboard')
   const [stats, setStats] = useState<Stats>(DEFAULT_STATS)
   const [statsLoading, setStatsLoading] = useState(false)
+  const [paymentCategory, setPaymentCategory] = useState<'ALL' | 'CASH' | 'BANK'>('ALL')
   const [search, setSearch] = useState('')
   const [dateFilter, setDateFilter] = useState<DateFilter>({ mode: 'NONE' })
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
@@ -175,6 +176,10 @@ export default function App() {
 
       let dep = 0
       let withd = 0
+      let cashDep = 0
+      let cashWithd = 0
+      let bankDep = 0
+      let bankWithd = 0
       const accounts = new Set<string>()
       let depCount = 0
       let withdCount = 0
@@ -185,18 +190,28 @@ export default function App() {
 
       filtered.forEach((tx) => {
         if (tx.client_name) accounts.add(tx.client_name.trim())
-        const isCash = !tx.payment_method || tx.payment_method === 'نقداً'
+        const isCash = !tx.payment_method || tx.payment_method === 'نقداً' || tx.payment_method === 'CASH'
 
         if (tx.type === 'DEPOSIT') {
           dep += tx.amount_cents
           depCount += 1
-          if (isCash) cashDepCount += 1
-          else bankDepCount += 1
+          if (isCash) {
+            cashDep += tx.amount_cents
+            cashDepCount += 1
+          } else {
+            bankDep += tx.amount_cents
+            bankDepCount += 1
+          }
         } else {
           withd += tx.amount_cents
           withdCount += 1
-          if (isCash) cashWithdCount += 1
-          else bankWithdCount += 1
+          if (isCash) {
+            cashWithd += tx.amount_cents
+            cashWithdCount += 1
+          } else {
+            bankWithd += tx.amount_cents
+            bankWithdCount += 1
+          }
         }
       })
 
@@ -209,17 +224,29 @@ export default function App() {
             active_accounts: accounts.size,
             deposit_count: depCount,
             withdrawal_count: withdCount,
+            cash_balance_cents: cashDep - cashWithd,
+            cash_deposits_cents: cashDep,
+            cash_withdrawals_cents: cashWithd,
             cash_deposit_count: cashDepCount,
-            bank_deposit_count: bankDepCount,
             cash_withdrawal_count: cashWithdCount,
+            bank_balance_cents: bankDep - bankWithd,
+            bank_deposits_cents: bankDep,
+            bank_withdrawals_cents: bankWithd,
+            bank_deposit_count: bankDepCount,
             bank_withdrawal_count: bankWithdCount,
           }
         : {
             ...baseStats,
-            cash_deposit_count: cashDepCount,
-            bank_deposit_count: bankDepCount,
-            cash_withdrawal_count: cashWithdCount,
-            bank_withdrawal_count: bankWithdCount,
+            cash_balance_cents: baseStats.cash_balance_cents ?? (cashDep - cashWithd),
+            cash_deposits_cents: baseStats.cash_deposits_cents ?? cashDep,
+            cash_withdrawals_cents: baseStats.cash_withdrawals_cents ?? cashWithd,
+            cash_deposit_count: baseStats.cash_deposit_count ?? cashDepCount,
+            cash_withdrawal_count: baseStats.cash_withdrawal_count ?? cashWithdCount,
+            bank_balance_cents: baseStats.bank_balance_cents ?? (bankDep - bankWithd),
+            bank_deposits_cents: baseStats.bank_deposits_cents ?? bankDep,
+            bank_withdrawals_cents: baseStats.bank_withdrawals_cents ?? bankWithd,
+            bank_deposit_count: baseStats.bank_deposit_count ?? bankDepCount,
+            bank_withdrawal_count: baseStats.bank_withdrawal_count ?? bankWithdCount,
           }
 
       setStats(finalStats)
@@ -235,6 +262,25 @@ export default function App() {
     fetchStats()
   }, [fetchStats])
 
+  const [tableRefreshKey, setTableRefreshKey] = useState(0)
+
+  // Global safety watchdog: ensures document.body never gets stuck with pointer-events: none
+  useEffect(() => {
+    const unlockBody = () => {
+      if (document.body.style.pointerEvents === 'none') {
+        document.body.style.pointerEvents = 'auto'
+      }
+    }
+    const timer = setInterval(unlockBody, 400)
+    window.addEventListener('mouseup', unlockBody)
+    window.addEventListener('keydown', unlockBody)
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener('mouseup', unlockBody)
+      window.removeEventListener('keydown', unlockBody)
+    }
+  }, [])
+
   // --- Archive Handlers ---
   const handleRestoreDashboardRow = async (id: number) => {
     if (window.electronAPI?.restoreTransaction) {
@@ -245,6 +291,9 @@ export default function App() {
       await fetchStats()
     }
     setArchivedDashboardRows((prev) => prev.filter((r) => r.id !== id))
+    setTableRefreshKey((k) => k + 1)
+    window.dispatchEvent(new CustomEvent('mjs:transactions-updated'))
+    document.body.style.pointerEvents = 'auto'
   }
 
   const handlePermanentDeleteDashboardRow = async (id: number) => {
@@ -253,11 +302,16 @@ export default function App() {
       await fetchStats()
     }
     setArchivedDashboardRows((prev) => prev.filter((r) => r.id !== id))
+    setTableRefreshKey((k) => k + 1)
+    window.dispatchEvent(new CustomEvent('mjs:transactions-updated'))
+    document.body.style.pointerEvents = 'auto'
   }
 
   const handleRestoreTreasuryEntity = async (name: string) => {
     setArchivedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
     await fetchStats()
+    setTableRefreshKey((k) => k + 1)
+    window.dispatchEvent(new CustomEvent('mjs:transactions-updated'))
   }
 
   const removeCustomEntityFromLocalStorage = (name: string) => {
@@ -281,6 +335,8 @@ export default function App() {
     removeCustomEntityFromLocalStorage(name)
     setArchivedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
     setDeletedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
+    setTableRefreshKey((k) => k + 1)
+    window.dispatchEvent(new CustomEvent('mjs:transactions-updated'))
   }
 
   // --- Trash / Soft Delete Handlers ---
@@ -290,6 +346,9 @@ export default function App() {
       await fetchStats()
     }
     setDeletedDashboardRows((prev) => prev.filter((r) => r.id !== id))
+    setTableRefreshKey((k) => k + 1)
+    window.dispatchEvent(new CustomEvent('mjs:transactions-updated'))
+    document.body.style.pointerEvents = 'auto'
   }
 
   const handlePermanentDeleteDashboardTrashRow = async (id: number) => {
@@ -298,6 +357,9 @@ export default function App() {
       await fetchStats()
     }
     setDeletedDashboardRows((prev) => prev.filter((r) => r.id !== id))
+    setTableRefreshKey((k) => k + 1)
+    window.dispatchEvent(new CustomEvent('mjs:transactions-updated'))
+    document.body.style.pointerEvents = 'auto'
   }
 
   const handleRestoreTreasuryTrashEntity = async (name: string) => {
@@ -306,6 +368,8 @@ export default function App() {
       await fetchStats()
     }
     setDeletedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
+    setTableRefreshKey((k) => k + 1)
+    window.dispatchEvent(new CustomEvent('mjs:transactions-updated'))
   }
 
   const handlePermanentDeleteTreasuryTrashEntity = async (name: string) => {
@@ -316,6 +380,8 @@ export default function App() {
     removeCustomEntityFromLocalStorage(name)
     setDeletedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
     setArchivedTreasuryRows((prev) => prev.filter((r) => r.name !== name))
+    setTableRefreshKey((k) => k + 1)
+    window.dispatchEvent(new CustomEvent('mjs:transactions-updated'))
   }
 
   const totalArchivedCount = archivedDashboardRows.length + archivedTreasuryRows.length
@@ -327,25 +393,36 @@ export default function App() {
       case 'transactions':
       case 'lifecycle':
         return (
-          <div className="flex flex-col gap-5 p-6 bg-white dark:bg-zinc-950 min-h-full transition-colors duration-300">
-            {/* Top Metric Cards (Row 1) */}
-            <MetricCards stats={stats} loading={statsLoading} />
+          <div className="flex flex-col px-6 pb-6 bg-white dark:bg-zinc-950 min-h-full transition-colors duration-300">
+            {/* Sticky Fixed Metric Cards Row at the top */}
+            <div className="sticky top-0 z-20 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md -mx-6 px-6 pt-3 pb-3 border-b border-zinc-200/80 dark:border-zinc-800/80 shadow-xs transition-colors">
+              <MetricCards
+                stats={stats}
+                loading={statsLoading}
+                selectedCategory={paymentCategory}
+                onSelectCategory={setPaymentCategory}
+              />
+            </div>
 
-            {/* Total Visitors / Overview Wave Chart (Row 2) */}
-            <OverviewChart />
+            <div className="flex flex-col gap-5 mt-5">
+              {/* Total Visitors / Overview Wave Chart (Row 2) */}
+              <OverviewChart />
 
-            {/* Main Data Table with toolbar (Row 3) */}
-            <TransactionsTable
-              searchValue={search}
-              onStatsRefresh={fetchStats}
-              dateFilter={dateFilter}
-              onArchiveRow={(tx) => {
-                setArchivedDashboardRows((prev) => [...prev.filter((r) => r.id !== tx.id), tx])
-              }}
-              onDeleteRow={(tx) => {
-                setDeletedDashboardRows((prev) => [...prev.filter((r) => r.id !== tx.id), tx])
-              }}
-            />
+              {/* Main Data Table with toolbar (Row 3) */}
+              <TransactionsTable
+                searchValue={search}
+                paymentCategory={paymentCategory}
+                onStatsRefresh={fetchStats}
+                dateFilter={dateFilter}
+                refreshTrigger={tableRefreshKey}
+                onArchiveRow={(tx) => {
+                  setArchivedDashboardRows((prev) => [...prev.filter((r) => r.id !== tx.id), tx])
+                }}
+                onDeleteRow={(tx) => {
+                  setDeletedDashboardRows((prev) => [...prev.filter((r) => r.id !== tx.id), tx])
+                }}
+              />
+            </div>
           </div>
         )
 

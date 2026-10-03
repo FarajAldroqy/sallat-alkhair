@@ -1,6 +1,5 @@
 import {
   LayoutDashboard,
-  Coins,
   User,
   Mail,
   Archive,
@@ -21,7 +20,6 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', labelAr: 'لوحة التحكم', icon: LayoutDashboard },
-  { id: 'treasury', label: 'Treasury', labelAr: 'الخزينة    ', icon: Coins },
 ]
 
 interface SidebarProps {

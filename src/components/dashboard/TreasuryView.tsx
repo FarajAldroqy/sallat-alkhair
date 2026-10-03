@@ -300,25 +300,31 @@ export function TreasuryView({ dateFilter, archivedTreasuryRows = [], deletedTre
   const [customEntities, setCustomEntities] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('salla_treasury_custom_entities')
-      return saved ? JSON.parse(saved) : []
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        return Array.isArray(parsed) ? parsed.filter((n: string) => n !== 'الخزينة الكلية' && n !== 'الخزينة') : []
+      }
+      return []
     } catch {
       return []
     }
   })
 
-  // Entity persistence: ensure all distinct transaction client_names are remembered in customEntities
+  // Entity persistence: ensure only genuine DEPOSIT client entities are remembered in customEntities
   useEffect(() => {
     if (transactions.length > 0) {
-      const names = new Set(customEntities)
+      const names = new Set(customEntities.filter((n) => n !== 'الخزينة الكلية' && n !== 'الخزينة'))
       let added = false
       transactions.forEach((t) => {
-        const name = t.client_name?.trim()
-        if (name && !names.has(name)) {
-          names.add(name)
-          added = true
+        if (!t.is_deleted && !t.is_archived && t.type === 'DEPOSIT') {
+          const name = t.client_name?.trim()
+          if (name && name !== 'الخزينة الكلية' && name !== 'الخزينة' && !names.has(name)) {
+            names.add(name)
+            added = true
+          }
         }
       })
-      if (added) {
+      if (added || names.size !== customEntities.length) {
         setCustomEntities(Array.from(names))
       }
     }
@@ -512,7 +518,12 @@ export function TreasuryView({ dateFilter, archivedTreasuryRows = [], deletedTre
     })
 
     filteredTransactions.forEach((tx) => {
+      // General withdrawals are direct treasury expenses deducted directly from total treasury balance
+      if (tx.type === 'WITHDRAWAL') return
+
       const name = tx.client_name.trim() || 'جهة غير معرفة'
+      if (name === 'الخزينة الكلية' || name === 'الخزينة') return
+
       const existing = map.get(name) || {
         name,
         depositedCents: 0,
@@ -524,8 +535,6 @@ export function TreasuryView({ dateFilter, archivedTreasuryRows = [], deletedTre
 
       if (tx.type === 'DEPOSIT') {
         existing.depositedCents += tx.amount_cents
-      } else if (tx.type === 'WITHDRAWAL') {
-        existing.withdrawnCents += tx.amount_cents
       }
       existing.netCents = existing.depositedCents - existing.withdrawnCents
       existing.transactionCount += 1

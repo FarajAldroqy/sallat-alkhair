@@ -6,6 +6,11 @@ import react from '@vitejs/plugin-react'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// Terminals spawned by VS Code (and other Electron apps) can inherit
+// ELECTRON_RUN_AS_NODE=1, which makes the Electron binary start as plain Node
+// and crash on `import { BrowserWindow } from 'electron'`.
+delete process.env.ELECTRON_RUN_AS_NODE
+
 // https://vitejs.dev/config/
 export default defineConfig({
   base: './',

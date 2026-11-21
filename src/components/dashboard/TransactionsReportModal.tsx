@@ -24,6 +24,7 @@ interface CardToggles {
   depositsSum: boolean
   depositsCount: boolean
   withdrawalsCount: boolean
+  net: boolean
 }
 
 interface TransactionsReportModalProps {
@@ -61,6 +62,7 @@ export function TransactionsReportModal({
     depositsSum: true,
     depositsCount: true,
     withdrawalsCount: true,
+    net: true,
   })
 
   if (!open) return null
@@ -106,6 +108,9 @@ export function TransactionsReportModal({
       else bankWithd += 1
     }
   })
+
+  // Net = total deposits minus total withdrawals (negative when withdrawals exceed deposits)
+  const netCents = totalDep - totalWithd
 
   // Format Date Filter Label
   const filterText = getDateFilterText(dateFilter)
@@ -162,7 +167,7 @@ export function TransactionsReportModal({
         </div>
 
         {/* Printable KPI Cards (If selected) */}
-        {(cards.withdrawalsSum || cards.depositsSum || cards.depositsCount || cards.withdrawalsCount) && (
+        {(cards.withdrawalsSum || cards.depositsSum || cards.depositsCount || cards.withdrawalsCount || cards.net) && (
           <div className="grid grid-cols-2 gap-3 mb-6" dir="rtl">
             {cards.withdrawalsSum && (
               <div className="p-3.5 rounded-xl border-2 border-rose-200 bg-rose-50/70">
@@ -196,6 +201,15 @@ export function TransactionsReportModal({
                 <span className="text-xs font-bold text-amber-800 block">عدد السحوبات</span>
                 <span className="text-xl font-black text-amber-950 ar-num block mt-1">
                   {withdCount} معاملة <span className="text-xs text-amber-700 font-bold">(نقداً: {cashWithd} | مصرفي: {bankWithd})</span>
+                </span>
+              </div>
+            )}
+
+            {cards.net && (
+              <div className="col-span-2 p-3.5 rounded-xl border-2 border-indigo-200 bg-indigo-50/70">
+                <span className="text-xs font-bold text-indigo-800 block">الصافي <span className="font-semibold text-indigo-600">(مجموع الإيداعات − مجموع السحوبات)</span></span>
+                <span dir="ltr" className={`text-xl font-black ar-num block mt-1 text-right ${netCents < 0 ? 'text-rose-700' : 'text-indigo-950'}`}>
+                  {formatCurrency(netCents)}
                 </span>
               </div>
             )}
@@ -472,6 +486,15 @@ export function TransactionsReportModal({
                     <span>بطاقة عدد وتفصيل السحوبات</span>
                     {cards.withdrawalsCount ? <CheckSquare className="w-4 h-4 text-emerald-600" /> : <Square className="w-4 h-4 text-zinc-400" />}
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleCard('net')}
+                    className="w-full flex items-center justify-between p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-right cursor-pointer"
+                  >
+                    <span>بطاقة الصافي</span>
+                    {cards.net ? <CheckSquare className="w-4 h-4 text-emerald-600" /> : <Square className="w-4 h-4 text-zinc-400" />}
+                  </button>
                 </div>
               </div>
             </div>
@@ -496,7 +519,7 @@ export function TransactionsReportModal({
                 </div>
 
                 {/* Preview KPI Cards */}
-                {(cards.withdrawalsSum || cards.depositsSum || cards.depositsCount || cards.withdrawalsCount) && (
+                {(cards.withdrawalsSum || cards.depositsSum || cards.depositsCount || cards.withdrawalsCount || cards.net) && (
                   <div className="grid grid-cols-2 gap-3">
                     {cards.withdrawalsSum && (
                       <div className="p-3 rounded-xl border border-rose-200 bg-rose-50/70">
@@ -530,6 +553,15 @@ export function TransactionsReportModal({
                         <span className="text-[11px] font-bold text-amber-800 block">عدد السحوبات</span>
                         <span className="text-lg font-black text-amber-950 ar-num block mt-0.5">
                           {withdCount} معاملة <span className="text-[11px] text-amber-700 font-bold">(نقداً: {cashWithd} | مصرفي: {bankWithd})</span>
+                        </span>
+                      </div>
+                    )}
+
+                    {cards.net && (
+                      <div className="col-span-2 p-3 rounded-xl border border-indigo-200 bg-indigo-50/70">
+                        <span className="text-[11px] font-bold text-indigo-800 block">الصافي <span className="font-semibold text-indigo-600">(مجموع الإيداعات − مجموع السحوبات)</span></span>
+                        <span dir="ltr" className={`text-lg font-black ar-num block mt-0.5 text-right ${netCents < 0 ? 'text-rose-700' : 'text-indigo-950'}`}>
+                          {formatCurrency(netCents)}
                         </span>
                       </div>
                     )}

@@ -38,6 +38,8 @@ import { initMockElectronAPI } from '@/lib/mockApi'
 import { exportTransactionsToCsv } from '@/lib/exportUtils'
 
 const PAGE_SIZE = 8
+// Upper bound when loading every matching row at once (e.g. for the printed report).
+const ALL_ROWS_LIMIT = 100000
 
 function sortTransactions(items: Transaction[]): Transaction[] {
   return [...items].sort((a, b) => {
@@ -116,6 +118,107 @@ export function TransactionsTable({
     return count
   }, [dashboardFilter])
 
+  // Every active transaction matching the current search and filters, sorted and
+  // unpaginated. Without `forceAll` it returns null when no custom filter is active,
+  // because the table then pages directly in SQLite.
+  const fetchMatchingTransactions = useCallback(async (forceAll = false): Promise<Transaction[] | null> => {
+    initMockElectronAPI()
+    if (!window.electronAPI) return forceAll ? [] : null
+
+    const effectivePaymentCategory = paymentCategory !== 'ALL' ? paymentCategory : (
+      dashboardFilter.paymentMethod !== 'ALL'
+        ? (dashboardFilter.paymentMethod === 'نقداً' ? 'CASH' : 'BANK')
+        : 'ALL'
+    )
+
+    const hasCustomFilters =
+      (dateFilter && dateFilter.mode !== 'NONE') ||
+      effectivePaymentCategory !== 'ALL' ||
+      dashboardFilter.paymentMethod !== 'ALL' ||
+      dashboardFilter.minAmount.trim() !== '' ||
+      dashboardFilter.maxAmount.trim() !== '' ||
+      dashboardFilter.sortDateOrder !== 'desc' ||
+      dashboardFilter.sortByAmount !== 'none' ||
+      typeFilter !== 'ALL' ||
+      dashboardFilter.type !== 'ALL'
+
+    const effectiveType = typeFilter !== 'ALL' ? typeFilter : dashboardFilter.type
+
+    if (!hasCustomFilters) {
+      if (!forceAll) return null
+      const result = await window.electronAPI.getTransactions({
+        page: 1,
+        pageSize: ALL_ROWS_LIMIT,
+        search: searchValue,
+        type: 'ALL',
+        status: 'ACTIVE',
+      })
+      return sortTransactions(result.data || [])
+    }
+
+    const result = await window.electronAPI.getTransactions({
+      page: 1,
+      pageSize: forceAll ? ALL_ROWS_LIMIT : 1000,
+      search: searchValue,
+      type: effectiveType,
+      status: 'ACTIVE',
+    })
+    let items = result.data || []
+
+    // Apply date filter
+    if (dateFilter && dateFilter.mode !== 'NONE') {
+      items = filterTransactionsByDate(items, dateFilter)
+    }
+
+    // Apply payment category filter
+    if (effectivePaymentCategory !== 'ALL') {
+      if (effectivePaymentCategory === 'CASH') {
+        items = items.filter((t) => !t.payment_method || t.payment_method === 'نقداً' || t.payment_method === 'CASH')
+      } else if (effectivePaymentCategory === 'BANK') {
+        items = items.filter((t) => t.payment_method === 'بنك' || t.payment_method === 'تحويل مصرفي' || t.payment_method === 'BANK_TRANSFER' || t.payment_method === 'BANK')
+      }
+    } else if (dashboardFilter.paymentMethod !== 'ALL') {
+      if (dashboardFilter.paymentMethod === 'بنك' || (dashboardFilter.paymentMethod as any) === 'تحويل مصرفي') {
+        items = items.filter((t) => t.payment_method === 'بنك' || t.payment_method === 'تحويل مصرفي' || t.payment_method === 'BANK_TRANSFER')
+      } else {
+        items = items.filter((t) => t.payment_method === dashboardFilter.paymentMethod)
+      }
+    }
+
+    // Apply min amount filter
+    if (dashboardFilter.minAmount.trim() !== '') {
+      const minCents = parseFloat(dashboardFilter.minAmount) * 100
+      items = items.filter((t) => t.amount_cents >= minCents)
+    }
+
+    // Apply max amount filter
+    if (dashboardFilter.maxAmount.trim() !== '') {
+      const maxCents = parseFloat(dashboardFilter.maxAmount) * 100
+      items = items.filter((t) => t.amount_cents <= maxCents)
+    }
+
+    // Apply custom sorting
+    items.sort((a, b) => {
+      const pinA = a.is_pinned ?? 0
+      const pinB = b.is_pinned ?? 0
+      if (pinA !== pinB) return pinB - pinA
+
+      if (dashboardFilter.sortByAmount === 'desc') {
+        return b.amount_cents - a.amount_cents
+      }
+      if (dashboardFilter.sortByAmount === 'asc') {
+        return a.amount_cents - b.amount_cents
+      }
+
+      if (dashboardFilter.sortDateOrder === 'asc') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+
+    return items
+  }, [searchValue, typeFilter, dateFilter, dashboardFilter, paymentCategory])
+
   const fetchData = useCallback(async () => {
     initMockElectronAPI()
     if (!window.electronAPI) {
@@ -124,86 +227,8 @@ export function TransactionsTable({
     }
     setLoading(true)
     try {
-      const effectivePaymentCategory = paymentCategory !== 'ALL' ? paymentCategory : (
-        dashboardFilter.paymentMethod !== 'ALL'
-          ? (dashboardFilter.paymentMethod === 'نقداً' ? 'CASH' : 'BANK')
-          : 'ALL'
-      )
-
-      const hasCustomFilters =
-        (dateFilter && dateFilter.mode !== 'NONE') ||
-        effectivePaymentCategory !== 'ALL' ||
-        dashboardFilter.paymentMethod !== 'ALL' ||
-        dashboardFilter.minAmount.trim() !== '' ||
-        dashboardFilter.maxAmount.trim() !== '' ||
-        dashboardFilter.sortDateOrder !== 'desc' ||
-        dashboardFilter.sortByAmount !== 'none' ||
-        typeFilter !== 'ALL' ||
-        dashboardFilter.type !== 'ALL'
-
-      const effectiveType = typeFilter !== 'ALL' ? typeFilter : dashboardFilter.type
-
-      if (hasCustomFilters) {
-        const result = await window.electronAPI.getTransactions({
-          page: 1,
-          pageSize: 1000,
-          search: searchValue,
-          type: effectiveType,
-          status: 'ACTIVE',
-        })
-        let items = result.data || []
-
-        // Apply date filter
-        if (dateFilter && dateFilter.mode !== 'NONE') {
-          items = filterTransactionsByDate(items, dateFilter)
-        }
-
-        // Apply payment category filter
-        if (effectivePaymentCategory !== 'ALL') {
-          if (effectivePaymentCategory === 'CASH') {
-            items = items.filter((t) => !t.payment_method || t.payment_method === 'نقداً' || t.payment_method === 'CASH')
-          } else if (effectivePaymentCategory === 'BANK') {
-            items = items.filter((t) => t.payment_method === 'بنك' || t.payment_method === 'تحويل مصرفي' || t.payment_method === 'BANK_TRANSFER' || t.payment_method === 'BANK')
-          }
-        } else if (dashboardFilter.paymentMethod !== 'ALL') {
-          if (dashboardFilter.paymentMethod === 'بنك' || (dashboardFilter.paymentMethod as any) === 'تحويل مصرفي') {
-            items = items.filter((t) => t.payment_method === 'بنك' || t.payment_method === 'تحويل مصرفي' || t.payment_method === 'BANK_TRANSFER')
-          } else {
-            items = items.filter((t) => t.payment_method === dashboardFilter.paymentMethod)
-          }
-        }
-
-        // Apply min amount filter
-        if (dashboardFilter.minAmount.trim() !== '') {
-          const minCents = parseFloat(dashboardFilter.minAmount) * 100
-          items = items.filter((t) => t.amount_cents >= minCents)
-        }
-
-        // Apply max amount filter
-        if (dashboardFilter.maxAmount.trim() !== '') {
-          const maxCents = parseFloat(dashboardFilter.maxAmount) * 100
-          items = items.filter((t) => t.amount_cents <= maxCents)
-        }
-
-        // Apply custom sorting
-        items.sort((a, b) => {
-          const pinA = a.is_pinned ?? 0
-          const pinB = b.is_pinned ?? 0
-          if (pinA !== pinB) return pinB - pinA
-
-          if (dashboardFilter.sortByAmount === 'desc') {
-            return b.amount_cents - a.amount_cents
-          }
-          if (dashboardFilter.sortByAmount === 'asc') {
-            return a.amount_cents - b.amount_cents
-          }
-
-          if (dashboardFilter.sortDateOrder === 'asc') {
-            return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          }
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        })
-
+      const items = await fetchMatchingTransactions()
+      if (items) {
         setTotal(items.length)
         const start = (page - 1) * PAGE_SIZE
         setData(items.slice(start, start + PAGE_SIZE))
@@ -223,7 +248,7 @@ export function TransactionsTable({
     } finally {
       setLoading(false)
     }
-  }, [page, searchValue, typeFilter, dateFilter, dashboardFilter, paymentCategory])
+  }, [page, searchValue, fetchMatchingTransactions])
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -433,6 +458,7 @@ export function TransactionsTable({
 
   // Custom Report Modal State
   const [reportModalOpen, setReportModalOpen] = useState(false)
+  const [reportTransactions, setReportTransactions] = useState<Transaction[]>([])
 
   // Full Edit Transaction Modal State & Handlers
   const [editModalOpen, setEditModalOpen] = useState(false)
@@ -578,6 +604,19 @@ export function TransactionsTable({
     return combined.sort((a, b) => a.localeCompare(b, 'ar'))
   }, [data, modalOpen])
 
+  // The report covers every transaction matching the active filters across all pages,
+  // not just the page currently shown in the table.
+  const handleOpenReport = async () => {
+    let all = data
+    try {
+      all = (await fetchMatchingTransactions(true)) ?? data
+    } catch (err) {
+      console.error('Failed to load all transactions for report', err)
+    }
+    setReportTransactions(selectedIds.length > 0 ? all.filter((t) => selectedIds.includes(t.id)) : all)
+    setReportModalOpen(true)
+  }
+
   const handleBulkArchive = async () => {
     if (selectedIds.length === 0) return
     const idsToArchive = [...selectedIds]
@@ -694,7 +733,7 @@ export function TransactionsTable({
               id="print-report-btn"
               variant="outline"
               size="sm"
-              onClick={() => setReportModalOpen(true)}
+              onClick={handleOpenReport}
               className="h-8 gap-1.5 text-xs text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 font-arabic font-medium shadow-xs"
             >
               <Printer className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
@@ -1357,7 +1396,7 @@ export function TransactionsTable({
       <TransactionsReportModal
         open={reportModalOpen}
         onClose={() => setReportModalOpen(false)}
-        transactions={selectedIds.length > 0 ? data.filter((t) => selectedIds.includes(t.id)) : data}
+        transactions={reportTransactions}
         stats={null}
         dateFilter={dateFilter}
       />

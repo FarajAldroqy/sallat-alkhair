@@ -43,21 +43,21 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
-    "autoprefixer": "^10.5.4",
-    "postcss": "^8.5.25",
-    "tailwindcss": "^3.4.19",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
-    "@typescript-eslint/eslint-plugin": "^7.1.1",
-    "@typescript-eslint/parser": "^7.1.1",
+    "@typescript-eslint/eslint-plugin": "^8.73.0",
+    "@typescript-eslint/parser": "^8.73.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.5.4",
     "electron": "^43.2.0",
-    "electron-builder": "^24.13.3",
+    "electron-builder": "^26.18.0",
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "postcss": "^8.5.25",
+    "tailwindcss": "^3.4.19",
     "typescript": "^5.2.2",
-    "vite": "^5.1.6",
+    "vite": "^6.4.6",
     "vite-plugin-electron": "^0.28.6",
     "vite-plugin-electron-renderer": "^0.14.5"
   },
@@ -66,5 +66,9 @@
     "better-sqlite3@13.0.2": true,
     "esbuild@0.21.5": true,
     "fsevents@2.3.3": true
+  },
+  "overrides": {
+    "minimatch@^10": "^11.0.9",
+    "minimatch@^9": "^11.0.9"
   }
 }
